@@ -353,12 +353,12 @@ class Database:
         if rows:
             return rows[0]
 
-        # 2. Tolerant match (within 100 UZS) if user sent flat amount without delta
+        # 2. Tolerant match (within 25 UZS) if user sent flat amount without delta
         rows = await self._fetch(
             """
             SELECT * FROM orders
             WHERE payment_type = 'humo' AND status = 'pending'
-            AND ABS(price_uzs - ?) <= 100
+            AND ABS(price_uzs - ?) <= 25
             AND expires_at >= ?
             ORDER BY id ASC LIMIT 1
             """,
