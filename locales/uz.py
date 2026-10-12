@@ -167,14 +167,14 @@ TEXTS: dict = {
     "admin_service_name_gift_1000":  "🎁 Gift 1000 Stars",
 
     "admin_new_humo_order": (
-        "🔔 <b>Yangi Humo to'lov buyurtmasi!</b>\n\n"
-        "🆔 Buyurtma: #{order_id}\n"
-        "👤 Foydalanuvchi: @{username} (ID: <code>{user_id}</code>)\n"
-        "📦 Turi: <b>{order_type}</b>\n"
-        "💰 Summa: <b>{price_uzs:,} so'm</b>\n"
-        "⏱ Qabul qilish: 5 daqiqa ichida"
+        '<tg-emoji emoji-id="5909201569898827582">🔔</tg-emoji> <b>Yangi Humo to\'lov buyurtmasi!</b>\n\n'
+        '<tg-emoji emoji-id="5771887475421090729">🆔</tg-emoji> Buyurtma: #{order_id}\n'
+        '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Foydalanuvchi: @{username} (ID: <code>{user_id}</code>)\n'
+        '<tg-emoji emoji-id="5924720918826848520">📦</tg-emoji> Turi: <b>{order_type}</b>\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Summa: <b>{price_uzs:,} so\'m</b>\n'
+        '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Qabul qilish: 5 daqiqa ichida'
     ),
-    "admin_order_approved": "✅ Buyurtma #{order_id} tasdiqlandi va yetkazildi!",
+    "admin_order_approved": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Buyurtma #{order_id} tasdiqlandi va yetkazildi!',
     "admin_order_already_processed": "⚠️ Buyurtma #{order_id} allaqachon bajarilgan yoki bekor bo'lgan.",
 
     # Referal & Bepul Sovg'a

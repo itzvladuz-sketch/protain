@@ -18,6 +18,7 @@ from loguru import logger
 from locales import t
 from services.config import BotConfig
 from services.db import Database, STATUS_EMOJIS
+from services.icons import ICONS, tg_icon
 
 load_dotenv()
 router = Router()
@@ -55,26 +56,26 @@ class AdminStates(StatesGroup):
 def _admin_main_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="📊 Statistika",   callback_data="adm:stats"),
-            InlineKeyboardButton(text="📋 Buyurtmalar",  callback_data="adm:orders"),
+            InlineKeyboardButton(text="Statistika",   callback_data="adm:stats", icon_custom_emoji_id=ICONS["chart"]),
+            InlineKeyboardButton(text="Buyurtmalar",  callback_data="adm:orders", icon_custom_emoji_id=ICONS["orders"]),
         ],
         [
-            InlineKeyboardButton(text="💰 Narxlar",      callback_data="adm:prices"),
-            InlineKeyboardButton(text="👥 Foydalanuvchilar", callback_data="adm:users"),
+            InlineKeyboardButton(text="Narxlar",      callback_data="adm:prices", icon_custom_emoji_id=ICONS["money"]),
+            InlineKeyboardButton(text="Foydalanuvchilar", callback_data="adm:users", icon_custom_emoji_id=ICONS["users"]),
         ],
         [
-            InlineKeyboardButton(text="📢 Majburiy kanallar", callback_data="adm:channels"),
-            InlineKeyboardButton(text="🎁 Sovg'a so'rovlari", callback_data="adm:gift_requests"),
+            InlineKeyboardButton(text="Majburiy kanallar", callback_data="adm:channels", icon_custom_emoji_id=ICONS["megaphone"]),
+            InlineKeyboardButton(text="Sovg'a so'rovlari", callback_data="adm:gift_requests", icon_custom_emoji_id=ICONS["gift"]),
         ],
         [
-            InlineKeyboardButton(text="📢 Xabar yuborish", callback_data="adm:broadcast"),
+            InlineKeyboardButton(text="Xabar yuborish", callback_data="adm:broadcast", icon_custom_emoji_id=ICONS["send"]),
         ],
     ])
 
 
 def _admin_back_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="◀️ Admin Panel", callback_data="adm:main")]
+        [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])]
     ])
 
 
@@ -99,7 +100,7 @@ async def show_admin_panel(target: Message, config: Optional[BotConfig] = None) 
     if not config:
         config = BotConfig.load()
     await target.answer(
-        "👑 <b>Admin Panel</b>\n\nXizmat turini tanlang:",
+        f'{tg_icon("crown", "👑")} <b>Admin Panel</b>\n\nXizmat turini tanlang:',
         reply_markup=_admin_main_kb(),
         parse_mode="HTML",
     )
@@ -126,7 +127,7 @@ async def admin_main(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer()
         return
     await callback.message.edit_text(
-        "👑 <b>Admin Panel</b>\n\nXizmat turini tanlang:",
+        f'{tg_icon("crown", "👑")} <b>Admin Panel</b>\n\nXizmat turini tanlang:',
         reply_markup=_admin_main_kb(),
         parse_mode="HTML",
     )
@@ -146,16 +147,16 @@ async def admin_stats(callback: CallbackQuery) -> None:
     stats = await db.get_stats()
 
     text = (
-        "📊 <b>Statistika</b>\n\n"
-        f"👥 Jami foydalanuvchilar: <b>{stats['users']}</b>\n"
-        f"📋 Jami buyurtmalar: <b>{stats['orders']}</b>\n"
-        f"✅ Bajarilgan: <b>{stats['completed']}</b>\n"
-        f"❌ Xatolik: <b>{stats['failed']}</b>\n"
-        f"⏳ Kutilmoqda: <b>{stats['pending']}</b>\n\n"
-        f"📅 <b>Bugun:</b>\n"
-        f"  • Buyurtmalar: <b>{stats['today_orders']}</b>\n"
-        f"  • Daromad: <b>${stats['today_revenue']:.2f}</b>\n\n"
-        f"💰 <b>Jami daromad: ${stats['total_revenue']:.2f}</b>"
+        f'{tg_icon("chart", "📊")} <b>Statistika</b>\n\n'
+        f'{tg_icon("users", "👥")} Jami foydalanuvchilar: <b>{stats["users"]}</b>\n'
+        f'{tg_icon("orders", "📋")} Jami buyurtmalar: <b>{stats["orders"]}</b>\n'
+        f'{tg_icon("check", "✅")} Bajarilgan: <b>{stats["completed"]}</b>\n'
+        f'{tg_icon("cancel", "❌")} Xatolik: <b>{stats["failed"]}</b>\n'
+        f'{tg_icon("clock", "⏳")} Kutilmoqda: <b>{stats["pending"]}</b>\n\n'
+        f'{tg_icon("calendar", "📅")} <b>Bugun:</b>\n'
+        f'  • Buyurtmalar: <b>{stats["today_orders"]}</b>\n'
+        f'  • Daromad: <b>${stats["today_revenue"]:.2f}</b>\n\n'
+        f'{tg_icon("money", "💰")} <b>Jami daromad: ${stats["total_revenue"]:.2f}</b>'
     )
     await callback.message.edit_text(text, reply_markup=_admin_back_kb(), parse_mode="HTML")
     await callback.answer()
@@ -175,21 +176,21 @@ async def admin_orders(callback: CallbackQuery) -> None:
 
     if not orders:
         await callback.message.edit_text(
-            "📋 <b>Buyurtmalar yo'q</b>",
+            f"{tg_icon('orders', '📋')} <b>Buyurtmalar yo'q</b>",
             reply_markup=_admin_back_kb(),
             parse_mode="HTML",
         )
         await callback.answer()
         return
 
-    lines = [f"📋 <b>So'nggi {len(orders)} ta buyurtma:</b>\n"]
+    lines = [f"{tg_icon('orders', '📋')} <b>So'nggi {len(orders)} ta buyurtma:</b>\n"]
     for o in orders:
         emoji = STATUS_EMOJIS.get(o["status"], "•")
         date_str = str(o.get("created_at", ""))[:16].replace("T", " ")
         lines.append(
-            f"🔖 <b>#{o['id']}</b> {emoji} | {o.get('order_type','?').upper()}\n"
-            f"   👤 @{o.get('username','?')} → @{o.get('recipient_username','?')}\n"
-            f"   💎 {float(o.get('price_ton',0)):.4f} TON | 📅 {date_str}"
+            f"{tg_icon('pin', '🔖')} <b>#{o['id']}</b> {emoji} | {o.get('order_type','?').upper()}\n"
+            f"   {tg_icon('user', '👤')} @{o.get('username','?')} → @{o.get('recipient_username','?')}\n"
+            f"   {tg_icon('diamond', '💎')} {float(o.get('price_ton',0)):.4f} TON | {tg_icon('calendar', '📅')} {date_str}"
         )
         if len(lines) > 30:  # Telegram message limit safety
             break
@@ -197,14 +198,14 @@ async def admin_orders(callback: CallbackQuery) -> None:
     # Add filter buttons
     filter_buttons = [
         [
-            InlineKeyboardButton(text="⏳ Kutilmoqda", callback_data="adm:orders:pending"),
-            InlineKeyboardButton(text="✅ Bajarilgan", callback_data="adm:orders:completed"),
+            InlineKeyboardButton(text="Kutilmoqda", callback_data="adm:orders:pending", icon_custom_emoji_id=ICONS["clock"]),
+            InlineKeyboardButton(text="Bajarilgan", callback_data="adm:orders:completed", icon_custom_emoji_id=ICONS["check"]),
         ],
         [
-            InlineKeyboardButton(text="❌ Xatolik", callback_data="adm:orders:failed"),
-            InlineKeyboardButton(text="📋 Hammasi", callback_data="adm:orders"),
+            InlineKeyboardButton(text="Xatolik", callback_data="adm:orders:failed", icon_custom_emoji_id=ICONS["cancel"]),
+            InlineKeyboardButton(text="Hammasi", callback_data="adm:orders", icon_custom_emoji_id=ICONS["orders"]),
         ],
-        [InlineKeyboardButton(text="◀️ Admin Panel", callback_data="adm:main")],
+        [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
     ]
     kb = InlineKeyboardMarkup(inline_keyboard=filter_buttons)
 
@@ -226,26 +227,26 @@ async def admin_orders_filtered(callback: CallbackQuery) -> None:
 
     db = Database(config.database_path)
     orders = await db.get_all_orders(limit=15, status=status)
-    status_labels = {"pending": "⏳ Kutilmoqda", "completed": "✅ Bajarilgan", "failed": "❌ Xatolik"}
+    status_labels = {"pending": "Kutilmoqda", "completed": "Bajarilgan", "failed": "Xatolik"}
     label = status_labels.get(status, status)
 
     if not orders:
         await callback.message.edit_text(
-            f"📋 <b>{label}</b> — buyurtmalar yo'q",
+            f"{tg_icon('orders', '📋')} <b>{label}</b> — buyurtmalar yo'q",
             reply_markup=_admin_back_kb(),
             parse_mode="HTML",
         )
         await callback.answer()
         return
 
-    lines = [f"📋 <b>{label}</b> ({len(orders)} ta):\n"]
+    lines = [f"{tg_icon('orders', '📋')} <b>{label}</b> ({len(orders)} ta):\n"]
     for o in orders:
         emoji = STATUS_EMOJIS.get(o["status"], "•")
         date_str = str(o.get("created_at", ""))[:16].replace("T", " ")
         lines.append(
-            f"🔖 <b>#{o['id']}</b> {emoji} | {o.get('order_type','?').upper()}\n"
-            f"   👤 @{o.get('username','?')} → @{o.get('recipient_username','?')}\n"
-            f"   💎 {float(o.get('price_ton',0)):.4f} TON | 📅 {date_str}"
+            f"{tg_icon('pin', '🔖')} <b>#{o['id']}</b> {emoji} | {o.get('order_type','?').upper()}\n"
+            f"   {tg_icon('user', '👤')} @{o.get('username','?')} → @{o.get('recipient_username','?')}\n"
+            f"   {tg_icon('diamond', '💎')} {float(o.get('price_ton',0)):.4f} TON | {tg_icon('calendar', '📅')} {date_str}"
         )
 
     text = "\n\n".join(lines)
@@ -272,18 +273,20 @@ async def admin_prices(callback: CallbackQuery) -> None:
         svc = p["service"]
         name_key = SERVICE_NAME_KEYS.get(svc, svc)
         name = t("uz", name_key)
-        active = "✅" if p["is_active"] else "❌"
-        disc = f" 🎉-{p['discount_percent']:.0f}%" if float(p.get("discount_percent", 0)) > 0 else ""
+        icon_id = ICONS["star"] if "star" in svc else (ICONS["diamond"] if "premium" in svc else ICONS["gift"])
+        disc = f" (-{p['discount_percent']:.0f}%)" if float(p.get("discount_percent", 0)) > 0 else ""
+        state_prefix = "" if p["is_active"] else "[O'chirilgan] "
         buttons.append([InlineKeyboardButton(
-            text=f"{active} {name} — ${p['base_price_usd']}{disc}",
-            callback_data=f"adm:price:{svc}"
+            text=f"{state_prefix}{name} — ${p['base_price_usd']}{disc}",
+            callback_data=f"adm:price:{svc}",
+            icon_custom_emoji_id=icon_id,
         )])
 
-    buttons.append([InlineKeyboardButton(text="◀️ Admin Panel", callback_data="adm:main")])
+    buttons.append([InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])])
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     await callback.message.edit_text(
-        "💰 <b>Narxlarni boshqarish</b>\n\nO'zgartirish uchun xizmatni tanlang:",
+        f'{tg_icon("money", "💰")} <b>Narxlarni boshqarish</b>\n\nO\'zgartirish uchun xizmatni tanlang:',
         reply_markup=kb,
         parse_mode="HTML",
     )
@@ -306,29 +309,30 @@ async def admin_price_detail(callback: CallbackQuery) -> None:
 
     name_key = SERVICE_NAME_KEYS.get(svc, svc)
     name = t("uz", name_key)
-    active_str = "✅ Ha" if p["is_active"] else "❌ Yo'q"
+    active_str = "Ha" if p["is_active"] else "Yo'q"
     disc = float(p.get("discount_percent", 0))
-    disc_str = f"🎉 {disc:.1f}%" if disc > 0 else "Yo'q"
+    disc_str = f"{disc:.1f}%" if disc > 0 else "Yo'q"
 
     text = (
-        f"📌 <b>{name}</b>\n\n"
-        f"💵 Asosiy narx: <b>${p['base_price_usd']}</b>\n"
-        f"📊 Komissiya: <b>{p['commission_percent']}%</b>\n"
-        f"🎉 Chegirma: <b>{disc_str}</b>\n"
-        f"✅ Faol: <b>{active_str}</b>"
+        f'{tg_icon("pin", "📌")} <b>{name}</b>\n\n'
+        f'{tg_icon("dollar", "💵")} Asosiy narx: <b>${p["base_price_usd"]}</b>\n'
+        f'{tg_icon("chart", "📊")} Komissiya: <b>{p["commission_percent"]}%</b>\n'
+        f'{tg_icon("party", "🎉")} Chegirma: <b>{disc_str}</b>\n'
+        f'{tg_icon("check", "✅")} Faol: <b>{active_str}</b>'
     )
 
-    toggle_label = "❌ O'chirish" if p["is_active"] else "✅ Yoqish"
+    toggle_label = "O'chirish" if p["is_active"] else "Yoqish"
+    toggle_icon = ICONS["cancel"] if p["is_active"] else ICONS["check"]
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="💵 Narx", callback_data=f"adm:editprice:{svc}"),
-            InlineKeyboardButton(text="📊 Komissiya", callback_data=f"adm:editcomm:{svc}"),
+            InlineKeyboardButton(text="Narx", callback_data=f"adm:editprice:{svc}", icon_custom_emoji_id=ICONS["dollar"]),
+            InlineKeyboardButton(text="Komissiya", callback_data=f"adm:editcomm:{svc}", icon_custom_emoji_id=ICONS["chart"]),
         ],
         [
-            InlineKeyboardButton(text="🎉 Chegirma", callback_data=f"adm:editdisc:{svc}"),
-            InlineKeyboardButton(text=toggle_label, callback_data=f"adm:toggle:{svc}"),
+            InlineKeyboardButton(text="Chegirma", callback_data=f"adm:editdisc:{svc}", icon_custom_emoji_id=ICONS["party"]),
+            InlineKeyboardButton(text=toggle_label, callback_data=f"adm:toggle:{svc}", icon_custom_emoji_id=toggle_icon),
         ],
-        [InlineKeyboardButton(text="◀️ Narxlar", callback_data="adm:prices")],
+        [InlineKeyboardButton(text="Narxlar", callback_data="adm:prices", icon_custom_emoji_id=ICONS["back"])],
     ])
 
     await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
@@ -372,11 +376,11 @@ async def admin_edit_price_prompt(callback: CallbackQuery, state: FSMContext) ->
     await state.update_data(edit_service=svc, edit_field="base_price_usd")
     await state.set_state(AdminStates.waiting_new_price)
     await callback.message.edit_text(
-        f"💵 <b>{name}</b> uchun yangi narxni kiriting:\n\n"
-        f"Joriy narx: <b>${p['base_price_usd']}</b>\n\n"
-        f"<i>Misol: 0.015</i>",
+        f'{tg_icon("dollar", "💵")} <b>{name}</b> uchun yangi narxni kiriting:\n\n'
+        f'Joriy narx: <b>${p["base_price_usd"]}</b>\n\n'
+        f'<i>Misol: 0.015</i>',
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Bekor", callback_data=f"adm:price:{svc}")]
+            [InlineKeyboardButton(text="Bekor", callback_data=f"adm:price:{svc}", icon_custom_emoji_id=ICONS["cancel"])]
         ]),
         parse_mode="HTML",
     )
@@ -406,9 +410,9 @@ async def admin_set_price(message: Message, state: FSMContext) -> None:
     await db.set_price(svc, base_price_usd=val)
     await state.clear()
     name = t("uz", SERVICE_NAME_KEYS.get(svc, svc))
-    await message.answer(f"✅ <b>{name}</b> narxi <b>${val}</b> ga o'zgartirildi!", parse_mode="HTML",
+    await message.answer(f"{tg_icon('check', '✅')} <b>{name}</b> narxi <b>${val}</b> ga o'zgartirildi!", parse_mode="HTML",
                          reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                             [InlineKeyboardButton(text="◀️ Narxlar", callback_data="adm:prices")]
+                             [InlineKeyboardButton(text="Narxlar", callback_data="adm:prices", icon_custom_emoji_id=ICONS["back"])]
                          ]))
 
 
@@ -427,10 +431,10 @@ async def admin_edit_commission_prompt(callback: CallbackQuery, state: FSMContex
     await state.update_data(edit_service=svc)
     await state.set_state(AdminStates.waiting_new_commission)
     await callback.message.edit_text(
-        f"📊 <b>{name}</b> uchun komissiyani kiriting (%):\n\n"
-        f"Joriy: <b>{p['commission_percent']}%</b>\n\n<i>Misol: 5</i>",
+        f'{tg_icon("chart", "📊")} <b>{name}</b> uchun komissiyani kiriting (%):\n\n'
+        f'Joriy: <b>{p["commission_percent"]}%</b>\n\n<i>Misol: 5</i>',
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Bekor", callback_data=f"adm:price:{svc}")]
+            [InlineKeyboardButton(text="Bekor", callback_data=f"adm:price:{svc}", icon_custom_emoji_id=ICONS["cancel"])]
         ]),
         parse_mode="HTML",
     )
@@ -458,9 +462,9 @@ async def admin_set_commission(message: Message, state: FSMContext) -> None:
     await db.set_price(svc, commission_percent=val)
     await state.clear()
     name = t("uz", SERVICE_NAME_KEYS.get(svc, svc))
-    await message.answer(f"✅ <b>{name}</b> komissiyasi <b>{val}%</b> ga o'zgartirildi!", parse_mode="HTML",
+    await message.answer(f"{tg_icon('check', '✅')} <b>{name}</b> komissiyasi <b>{val}%</b> ga o'zgartirildi!", parse_mode="HTML",
                          reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                             [InlineKeyboardButton(text="◀️ Narxlar", callback_data="adm:prices")]
+                             [InlineKeyboardButton(text="Narxlar", callback_data="adm:prices", icon_custom_emoji_id=ICONS["back"])]
                          ]))
 
 
@@ -479,10 +483,10 @@ async def admin_edit_discount_prompt(callback: CallbackQuery, state: FSMContext)
     await state.update_data(edit_service=svc)
     await state.set_state(AdminStates.waiting_new_discount)
     await callback.message.edit_text(
-        f"🎉 <b>{name}</b> uchun chegirmani kiriting (%):\n\n"
-        f"Joriy: <b>{p['discount_percent']}%</b>\n\n<i>0 = chegirma yo'q</i>",
+        f'{tg_icon("party", "🎉")} <b>{name}</b> uchun chegirmani kiriting (%):\n\n'
+        f'Joriy: <b>{p["discount_percent"]}%</b>\n\n<i>0 = chegirma yo\'q</i>',
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Bekor", callback_data=f"adm:price:{svc}")]
+            [InlineKeyboardButton(text="Bekor", callback_data=f"adm:price:{svc}", icon_custom_emoji_id=ICONS["cancel"])]
         ]),
         parse_mode="HTML",
     )
@@ -511,9 +515,9 @@ async def admin_set_discount(message: Message, state: FSMContext) -> None:
     await state.clear()
     name = t("uz", SERVICE_NAME_KEYS.get(svc, svc))
     disc_str = f"{val}%" if val > 0 else "yo'q"
-    await message.answer(f"✅ <b>{name}</b> chegirmasi <b>{disc_str}</b> ga o'zgartirildi!", parse_mode="HTML",
+    await message.answer(f"{tg_icon('check', '✅')} <b>{name}</b> chegirmasi <b>{disc_str}</b> ga o'zgartirildi!", parse_mode="HTML",
                          reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                             [InlineKeyboardButton(text="◀️ Narxlar", callback_data="adm:prices")]
+                             [InlineKeyboardButton(text="Narxlar", callback_data="adm:prices", icon_custom_emoji_id=ICONS["back"])]
                          ]))
 
 
@@ -531,7 +535,7 @@ async def admin_users(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.set_state(AdminStates.waiting_user_id)
     await callback.message.edit_text(
-        f"👥 <b>Foydalanuvchilar</b>\n\nJami: <b>{count}</b> ta\n\n"
+        f'{tg_icon("users", "👥")} <b>Foydalanuvchilar</b>\n\nJami: <b>{count}</b> ta\n\n'
         f"Foydalanuvchi <b>Telegram ID</b>sini kiriting:",
         reply_markup=_admin_back_kb(),
         parse_mode="HTML",
@@ -561,29 +565,29 @@ async def admin_user_lookup(message: Message, state: FSMContext) -> None:
     orders = await db.get_user_orders(user_id, limit=100)
     orders_count = len(orders)
     date_str = str(user.get("created_at", ""))[:10]
-    banned = "🚫 Ha" if user.get("is_banned") else "✅ Yo'q"
+    banned = "Ha" if user.get("is_banned") else "Yo'q"
     lang = user.get("lang", "uz")
     lang_names = {"uz": "🇺🇿 O'zbek", "ru": "🇷🇺 Rus", "en": "🇬🇧 Ingliz"}
 
     text = (
-        f"👤 <b>Foydalanuvchi #{user_id}</b>\n\n"
-        f"🆔 ID: <code>{user_id}</code>\n"
-        f"👤 Username: @{user.get('username', '-')}\n"
-        f"🌐 Til: {lang_names.get(lang, lang)}\n"
-        f"💎 Balans: {float(user.get('balance_ton', 0)):.4f} TON\n"
-        f"🚫 Bloklangan: {banned}\n"
-        f"📅 Ro'yxatdan: {date_str}\n"
-        f"📋 Buyurtmalar: {orders_count} ta"
+        f'{tg_icon("user", "👤")} <b>Foydalanuvchi #{user_id}</b>\n\n'
+        f'{tg_icon("user", "🆔")} ID: <code>{user_id}</code>\n'
+        f'{tg_icon("user", "👤")} Username: @{user.get("username", "-")}\n'
+        f'{tg_icon("globe", "🌐")} Til: {lang_names.get(lang, lang)}\n'
+        f'{tg_icon("diamond", "💎")} Balans: {float(user.get("balance_ton", 0)):.4f} TON\n'
+        f'{tg_icon("ban", "🚫")} Bloklangan: {banned}\n'
+        f'{tg_icon("calendar", "📅")} Ro\'yxatdan: {date_str}\n'
+        f'{tg_icon("orders", "📋")} Buyurtmalar: {orders_count} ta'
     )
 
     ban_btn = (
-        InlineKeyboardButton(text="✅ Blokdan chiqarish", callback_data=f"adm:unban:{user_id}")
+        InlineKeyboardButton(text="Blokdan chiqarish", callback_data=f"adm:unban:{user_id}", icon_custom_emoji_id=ICONS["check"])
         if user.get("is_banned")
-        else InlineKeyboardButton(text="🚫 Bloklash", callback_data=f"adm:ban:{user_id}")
+        else InlineKeyboardButton(text="Bloklash", callback_data=f"adm:ban:{user_id}", icon_custom_emoji_id=ICONS["ban"])
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [ban_btn],
-        [InlineKeyboardButton(text="◀️ Admin Panel", callback_data="adm:main")],
+        [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
     ])
 
     await state.clear()
@@ -603,8 +607,8 @@ async def admin_ban_user(callback: CallbackQuery) -> None:
     await callback.answer("🚫 Foydalanuvchi bloklandi.")
     await callback.message.edit_reply_markup(
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Blokdan chiqarish", callback_data=f"adm:unban:{user_id}")],
-            [InlineKeyboardButton(text="◀️ Admin Panel", callback_data="adm:main")],
+            [InlineKeyboardButton(text="Blokdan chiqarish", callback_data=f"adm:unban:{user_id}", icon_custom_emoji_id=ICONS["check"])],
+            [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
         ])
     )
 
@@ -622,8 +626,8 @@ async def admin_unban_user(callback: CallbackQuery) -> None:
     await callback.answer("✅ Blokdan chiqarildi.")
     await callback.message.edit_reply_markup(
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🚫 Bloklash", callback_data=f"adm:ban:{user_id}")],
-            [InlineKeyboardButton(text="◀️ Admin Panel", callback_data="adm:main")],
+            [InlineKeyboardButton(text="Bloklash", callback_data=f"adm:ban:{user_id}", icon_custom_emoji_id=ICONS["ban"])],
+            [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
         ])
     )
 
@@ -642,7 +646,7 @@ async def admin_broadcast_start(callback: CallbackQuery, state: FSMContext) -> N
 
     await state.set_state(AdminStates.waiting_broadcast_text)
     await callback.message.edit_text(
-        f"📢 <b>Xabar yuborish</b>\n\n"
+        f'{tg_icon("megaphone", "📢")} <b>Xabar yuborish</b>\n\n'
         f"Barcha <b>{count}</b> ta foydalanuvchiga yuboriladigan xabarni yozing:\n\n"
         f"<i>HTML formatlash qo'llab-quvvatlanadi:\n"
         f"&lt;b&gt;qalin&lt;/b&gt;, &lt;i&gt;kursiv&lt;/i&gt;, &lt;code&gt;kod&lt;/code&gt;</i>",
@@ -672,12 +676,12 @@ async def admin_broadcast_text(message: Message, state: FSMContext) -> None:
     preview = broadcast_text[:200] + ("..." if len(broadcast_text) > 200 else "")
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="📤 Yuborish", callback_data="adm:broadcast:confirm"),
-            InlineKeyboardButton(text="❌ Bekor", callback_data="adm:main"),
+            InlineKeyboardButton(text="Yuborish", callback_data="adm:broadcast:confirm", icon_custom_emoji_id=ICONS["send"]),
+            InlineKeyboardButton(text="Bekor", callback_data="adm:main", icon_custom_emoji_id=ICONS["cancel"]),
         ]
     ])
     await message.answer(
-        f"📢 <b>Xabarni tasdiqlang</b>\n\n"
+        f'{tg_icon("megaphone", "📢")} <b>Xabarni tasdiqlang</b>\n\n'
         f"<b>{count}</b> ta foydalanuvchiga yuboriladi:\n\n"
         f"━━━━━━━━━━━━━\n{preview}\n━━━━━━━━━━━━━",
         reply_markup=kb,
@@ -703,7 +707,7 @@ async def admin_broadcast_send(callback: CallbackQuery, state: FSMContext) -> No
     users = await db.get_all_users()
 
     await callback.message.edit_text(
-        f"⏳ <b>Yuborilmoqda...</b>\n0 / {len(users)}",
+        f'{tg_icon("clock", "⏳")} <b>Yuborilmoqda...</b>\n0 / {len(users)}',
         parse_mode="HTML",
     )
 
@@ -726,7 +730,7 @@ async def admin_broadcast_send(callback: CallbackQuery, state: FSMContext) -> No
         if (i + 1) % 20 == 0 or i + 1 == len(users):
             try:
                 await callback.message.edit_text(
-                    f"⏳ <b>Yuborilmoqda...</b>\n{i+1} / {len(users)}",
+                    f'{tg_icon("clock", "⏳")} <b>Yuborilmoqda...</b>\n{i+1} / {len(users)}',
                     parse_mode="HTML",
                 )
             except Exception:
@@ -736,9 +740,9 @@ async def admin_broadcast_send(callback: CallbackQuery, state: FSMContext) -> No
     await db.log_broadcast(callback.from_user.id, broadcast_text, success, fail)
 
     await callback.message.edit_text(
-        f"✅ <b>Xabar yuborildi!</b>\n\n"
-        f"📤 Muvaffaqiyatli: <b>{success}</b>\n"
-        f"❌ Xatolik: <b>{fail}</b>",
+        f'{tg_icon("check", "✅")} <b>Xabar yuborildi!</b>\n\n'
+        f'{tg_icon("send", "📤")} Muvaffaqiyatli: <b>{success}</b>\n'
+        f'{tg_icon("cancel", "❌")} Xatolik: <b>{fail}</b>',
         reply_markup=_admin_back_kb(),
         parse_mode="HTML",
     )
@@ -758,17 +762,17 @@ async def adm_channels_list(callback: CallbackQuery) -> None:
 
     buttons = []
     if not channels:
-        text = "📢 <b>Majburiy kanallar yo'q.</b>\n\nFoydalanuvchilar to'g'ridan-to'g'ri botdan foydalanishmoqda."
+        text = f"{tg_icon('megaphone', '📢')} <b>Majburiy kanallar yo'q.</b>\n\nFoydalanuvchilar to'g'ridan-to'g'ri botdan foydalanishmoqda."
     else:
-        text = f"📢 <b>Majburiy kanallar ro'yxati ({len(channels)} ta):</b>\n\n"
+        text = f"{tg_icon('megaphone', '📢')} <b>Majburiy kanallar ro'yxati ({len(channels)} ta):</b>\n\n"
         for i, ch in enumerate(channels, 1):
             text += f"{i}. <b>{ch['title']}</b> (<code>{ch['channel_id']}</code>)\n🔗 {ch['url']}\n\n"
             buttons.append([
-                InlineKeyboardButton(text=f"🗑 {ch['title']} ni o'chirish", callback_data=f"del_ch:{ch['channel_id']}")
+                InlineKeyboardButton(text=f"{ch['title']} ni o'chirish", callback_data=f"del_ch:{ch['channel_id']}", icon_custom_emoji_id=ICONS["trash"])
             ])
 
-    buttons.append([InlineKeyboardButton(text="➕ Kanal qo'shish", callback_data="adm:add_channel")])
-    buttons.append([InlineKeyboardButton(text="◀️ Admin Panel", callback_data="adm:main")])
+    buttons.append([InlineKeyboardButton(text="Kanal qo'shish", callback_data="adm:add_channel", icon_custom_emoji_id=ICONS["plus"])])
+    buttons.append([InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])])
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
@@ -784,11 +788,11 @@ async def adm_add_channel_start(callback: CallbackQuery, state: FSMContext) -> N
 
     await state.set_state(AdminStates.waiting_channel_id)
     await callback.message.edit_text(
-        "📢 <b>Kanal ID yoki @username'ini kiriting:</b>\n\n"
+        f"{tg_icon('megaphone', '📢')} <b>Kanal ID yoki @username'ini kiriting:</b>\n\n"
         "Masalan: <code>@meningkanalim</code> yoki <code>-1001234567890</code>\n\n"
         "<i>Eslatma: Bot ushbu kanalda ADMIN bo'lishi kerak!</i>",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀️ Bekor qilish", callback_data="adm:channels")]
+            [InlineKeyboardButton(text="Bekor qilish", callback_data="adm:channels", icon_custom_emoji_id=ICONS["cancel"])]
         ]),
         parse_mode="HTML",
     )
@@ -803,7 +807,7 @@ async def adm_process_channel_id(message: Message, state: FSMContext) -> None:
     await state.update_data(channel_id=ch_id)
     await state.set_state(AdminStates.waiting_channel_title)
     await message.answer(
-        "📝 <b>Kanal nomini kiriting:</b>\n\nMasalan: <code>Rasmiy Kanal</code>",
+        f"{tg_icon('memo', '📝')} <b>Kanal nomini kiriting:</b>\n\nMasalan: <code>Rasmiy Kanal</code>",
         parse_mode="HTML",
     )
 
@@ -816,7 +820,7 @@ async def adm_process_channel_title(message: Message, state: FSMContext) -> None
     await state.update_data(title=title)
     await state.set_state(AdminStates.waiting_channel_url)
     await message.answer(
-        "🔗 <b>Kanal havolasini (link) kiriting:</b>\n\nMasalan: <code>https://t.me/meningkanalim</code>",
+        f"{tg_icon('link', '🔗')} <b>Kanal havolasini (link) kiriting:</b>\n\nMasalan: <code>https://t.me/meningkanalim</code>",
         parse_mode="HTML",
     )
 
@@ -834,10 +838,10 @@ async def adm_process_channel_url(message: Message, state: FSMContext) -> None:
     await db.add_channel(ch_id, title, url)
 
     await message.answer(
-        f"✅ <b>Kanal muvaffaqiyatli qo'shildi!</b>\n\n"
-        f"📢 Nomi: <b>{title}</b>\n"
-        f"🆔 ID: <code>{ch_id}</code>\n"
-        f"🔗 Havola: {url}",
+        f"{tg_icon('check', '✅')} <b>Kanal muvaffaqiyatli qo'shildi!</b>\n\n"
+        f"{tg_icon('megaphone', '📢')} Nomi: <b>{title}</b>\n"
+        f"{tg_icon('user', '🆔')} ID: <code>{ch_id}</code>\n"
+        f"{tg_icon('link', '🔗')} Havola: {url}",
         reply_markup=_admin_back_kb(),
         parse_mode="HTML",
     )
@@ -870,10 +874,10 @@ async def adm_gift_requests(callback: CallbackQuery) -> None:
     requests = await db.get_gift_requests(limit=10)
 
     if not requests:
-        text = "🎁 <b>Sovg'a so'rovlari hozircha yo'q.</b>"
+        text = f"{tg_icon('gift', '🎁')} <b>Sovg'a so'rovlari hozircha yo'q.</b>"
         kb = _admin_back_kb()
     else:
-        text = f"🎁 <b>So'nggi sovg'a so'rovlari ({len(requests)} ta):</b>\n\n"
+        text = f"{tg_icon('gift', '🎁')} <b>So'nggi sovg'a so'rovlari ({len(requests)} ta):</b>\n\n"
         buttons = []
         for req in requests:
             status_emoji = "⏳" if req["status"] == "pending" else "✅"
@@ -886,11 +890,12 @@ async def adm_gift_requests(callback: CallbackQuery) -> None:
             if req["status"] == "pending":
                 buttons.append([
                     InlineKeyboardButton(
-                        text=f"✅ #{req['id']} - Yuborildi deb tasdiqlash",
-                        callback_data=f"gift_done:{req['id']}"
+                        text=f"#{req['id']} - Yuborildi deb tasdiqlash",
+                        callback_data=f"gift_done:{req['id']}",
+                        icon_custom_emoji_id=ICONS["check"]
                     )
                 ])
-        buttons.append([InlineKeyboardButton(text="◀️ Admin Panel", callback_data="adm:main")])
+        buttons.append([InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])])
         kb = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
@@ -919,16 +924,16 @@ async def adm_gift_mark_done(callback: CallbackQuery) -> None:
     try:
         await callback.bot.send_message(
             user_id,
-            f"🎉 <b>Sovg'angiz yetkazib berildi!</b>\n\n"
+            f"{tg_icon('party', '🎉')} <b>Sovg'angiz yetkazib berildi!</b>\n\n"
             f"@{recipient} akkauntiga <b>{gift_name}</b> muvaffaqiyatli topshirildi!\n"
-            f"Biz bilan qolganingiz uchun rahmat! ⭐",
+            f"Biz bilan qolganingiz uchun rahmat! {tg_icon('star', '⭐')}",
             parse_mode="HTML",
         )
     except Exception as e:
         logger.warning("Foydalanuvchiga xabar yuborilmadi: {}", e)
 
     await callback.message.edit_text(
-        f"✅ <b>Sovg'a so'rovi #{req_id} muvaffaqiyatli bajarildi!</b>\n\n"
+        f"{tg_icon('check', '✅')} <b>Sovg'a so'rovi #{req_id} muvaffaqiyatli bajarildi!</b>\n\n"
         f"🎯 Qabul qiluvchi: @{recipient}\n"
         f"🧸 Sovg'a: {gift_name}",
         reply_markup=_admin_back_kb(),

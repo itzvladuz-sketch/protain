@@ -167,14 +167,14 @@ TEXTS: dict = {
     "admin_service_name_gift_1000":  "🎁 Gift 1000 Stars",
 
     "admin_new_humo_order": (
-        "🔔 <b>New Humo order!</b>\n\n"
-        "🆔 Order: #{order_id}\n"
-        "👤 User: @{username} (ID: <code>{user_id}</code>)\n"
-        "📦 Type: <b>{order_type}</b>\n"
-        "💰 Amount: <b>{price_uzs:,} UZS</b>\n"
-        "⏱ Awaiting payment: 5 minutes"
+        '<tg-emoji emoji-id="5909201569898827582">🔔</tg-emoji> <b>New Humo order!</b>\n\n'
+        '<tg-emoji emoji-id="5771887475421090729">🆔</tg-emoji> Order: #{order_id}\n'
+        '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> User: @{username} (ID: <code>{user_id}</code>)\n'
+        '<tg-emoji emoji-id="5924720918826848520">📦</tg-emoji> Type: <b>{order_type}</b>\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Amount: <b>{price_uzs:,} UZS</b>\n'
+        '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Awaiting payment: 5 minutes'
     ),
-    "admin_order_approved": "✅ Order #{order_id} approved and fulfilled!",
+    "admin_order_approved": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Order #{order_id} approved and fulfilled!',
     "admin_order_already_processed": "⚠️ Order #{order_id} has already been processed or cancelled.",
 
     # Referrals & Gifts

@@ -167,14 +167,14 @@ TEXTS: dict = {
     "admin_service_name_gift_1000":  "🎁 Gift 1000 Stars",
 
     "admin_new_humo_order": (
-        "🔔 <b>Новый заказ через Humo!</b>\n\n"
-        "🆔 Заказ: #{order_id}\n"
-        "👤 Пользователь: @{username} (ID: <code>{user_id}</code>)\n"
-        "📦 Тип: <b>{order_type}</b>\n"
-        "💰 Сумма: <b>{price_uzs:,} сум</b>\n"
-        "⏱ Ожидание оплаты: 5 минут"
+        '<tg-emoji emoji-id="5909201569898827582">🔔</tg-emoji> <b>Новый заказ через Humo!</b>\n\n'
+        '<tg-emoji emoji-id="5771887475421090729">🆔</tg-emoji> Заказ: #{order_id}\n'
+        '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Пользователь: @{username} (ID: <code>{user_id}</code>)\n'
+        '<tg-emoji emoji-id="5924720918826848520">📦</tg-emoji> Тип: <b>{order_type}</b>\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Сумма: <b>{price_uzs:,} сум</b>\n'
+        '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Ожидание оплаты: 5 минут'
     ),
-    "admin_order_approved": "✅ Заказ #{order_id} подтверждён и выполнен!",
+    "admin_order_approved": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Заказ #{order_id} подтверждён и выполнен!',
     "admin_order_already_processed": "⚠️ Заказ #{order_id} уже обработан или отменён.",
 
     # Рефералы и подарки
