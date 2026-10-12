@@ -280,8 +280,8 @@ async def _start_humo_topup_order(target: Message, user, amt: float, state: FSMC
     delta = random.randint(11, 89)
     final_amt = float(int(amt) + delta)
 
-    # 10 minutes expiry
-    expires_at = datetime.now() + timedelta(minutes=10)
+    # 5 minutes expiry
+    expires_at = datetime.now() + timedelta(minutes=5)
     order_id = await db.create_order(
         user_id=user.id,
         username=user.username,
@@ -857,8 +857,8 @@ async def pay_humo(callback: CallbackQuery, state: FSMContext) -> None:
     delta = random.randint(11, 89)
     price_uzs = float(round(price_usd * rate) + delta)
 
-    # 10 minutes expiry
-    expires_at = datetime.now() + timedelta(minutes=10)
+    # 5 minutes expiry
+    expires_at = datetime.now() + timedelta(minutes=5)
 
     if service == "stars":
         order_type = "stars"

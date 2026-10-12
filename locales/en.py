@@ -91,7 +91,7 @@ TEXTS: dict = {
         "💳 Card:\n<code>{card_number}</code>\n"
         "👤 Cardholder: <b>{card_holder}</b>\n\n"
         "💰 Payment Amount:\n<code>{amount:,}</code> UZS\n\n"
-        "⏱ Payment window: <b>10 minutes</b>\n\n"
+        "⏱ Payment window: <b>5 minutes</b>\n\n"
         "⚠️ <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount:,}</code> UZS!"
     ),
     "payment_not_found": "⏳ Payment not found yet. If you transferred, please wait 1-2 minutes.",
