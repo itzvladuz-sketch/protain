@@ -69,7 +69,7 @@ def _cancel_kb(lang: str) -> InlineKeyboardMarkup:
 
 def _recipient_kb(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_myself"), callback_data="recipient:self")],
+        [InlineKeyboardButton(text=t(lang, "btn_myself"), callback_data="recipient:self", style="success")],
         [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main")],
     ])
 

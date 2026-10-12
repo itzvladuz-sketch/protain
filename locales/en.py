@@ -23,7 +23,7 @@ TEXTS: dict = {
     "btn_orders":   "📋 My Orders",
     "btn_help":     "Help",
     "btn_language": "🌐 Change Language",
-    "btn_myself":   "👤 For myself",
+    "btn_myself":   "🟢 For myself",
     "btn_back":     "◀️ Back",
     "btn_cancel":   "❌ Cancel",
     "btn_pay_ton":  "💎 Pay TON",
@@ -33,11 +33,10 @@ TEXTS: dict = {
     # Stars
     "stars_menu": (
         "⭐ <b>Telegram Stars</b>\n\n"
-        "<blockquote>🟢 <b>Who is this for?</b></blockquote>\n"
-        "Enter username or tap <b>«For myself»</b>:"
+        "👤 Who is this for? Enter username or tap <b>«For myself»</b>:"
     ),
     "enter_recipient": (
-        "<blockquote>🟢 <b>Who is this for?</b></blockquote>\n"
+        "👤 <b>Who is this for?</b>\n"
         "Enter username or tap <b>«For myself»</b>:"
     ),
     "enter_stars_amount": (

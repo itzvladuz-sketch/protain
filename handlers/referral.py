@@ -38,7 +38,7 @@ def _referral_kb(lang: str, bot_username: str, user_id: int) -> InlineKeyboardMa
 
 def _claim_recipient_kb(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_myself"), callback_data="claim:myself")],
+        [InlineKeyboardButton(text=t(lang, "btn_myself"), callback_data="claim:myself", style="success")],
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:referral")],
     ])
 

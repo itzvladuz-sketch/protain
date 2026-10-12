@@ -23,7 +23,7 @@ TEXTS: dict = {
     "btn_orders":   "📋 Мои заказы",
     "btn_help":     "Помощь",
     "btn_language": "🌐 Сменить язык",
-    "btn_myself":   "👤 Себе",
+    "btn_myself":   "🟢 Себе",
     "btn_back":     "◀️ Назад",
     "btn_cancel":   "❌ Отмена",
     "btn_pay_ton":  "💎 Оплатить TON",
@@ -33,11 +33,10 @@ TEXTS: dict = {
     # Stars
     "stars_menu": (
         "⭐ <b>Telegram Stars</b>\n\n"
-        "<blockquote>🟢 <b>Кому покупаем?</b></blockquote>\n"
-        "Введите username или нажмите <b>«Себе»</b>:"
+        "👤 Кому покупаем? Введите username или нажмите <b>«Себе»</b>:"
     ),
     "enter_recipient": (
-        "<blockquote>🟢 <b>Кому покупаем?</b></blockquote>\n"
+        "👤 <b>Кому покупаем?</b>\n"
         "Введите username или нажмите <b>«Себе»</b>:"
     ),
     "enter_stars_amount": (

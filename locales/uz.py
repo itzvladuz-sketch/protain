@@ -23,7 +23,7 @@ TEXTS: dict = {
     "btn_orders":   "📋 Buyurtmalarim",
     "btn_help":     "Yordam",
     "btn_language": "🌐 Tilni o'zgartirish",
-    "btn_myself":   "👤 O'zimga",
+    "btn_myself":   "🟢 O'zimga",
     "btn_back":     "◀️ Orqaga",
     "btn_cancel":   "❌ Bekor qilish",
     "btn_pay_ton":  "💎 TON bilan to'lash",
@@ -33,11 +33,10 @@ TEXTS: dict = {
     # Stars
     "stars_menu": (
         "⭐ <b>Telegram Stars</b>\n\n"
-        "<blockquote>🟢 <b>Kimga olasiz?</b></blockquote>\n"
-        "Username kiriting yoki <b>«O'zimga»</b> tugmasini bosing:"
+        "👤 Kimga olamiz? Username kiriting yoki <b>«O'zimga»</b> tugmasini bosing:"
     ),
     "enter_recipient": (
-        "<blockquote>🟢 <b>Kimga olasiz?</b></blockquote>\n"
+        "👤 <b>Kimga olamiz?</b>\n"
         "Username kiriting yoki <b>«O'zimga»</b> bosing:"
     ),
     "enter_stars_amount": (
