@@ -70,13 +70,17 @@ class Database:
                 PRAGMA temp_store=MEMORY;
 
                 CREATE TABLE IF NOT EXISTS users (
-                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id     INTEGER NOT NULL UNIQUE,
-                    username    TEXT,
-                    lang        TEXT NOT NULL DEFAULT 'uz',
-                    balance_ton REAL NOT NULL DEFAULT 0.0,
-                    is_banned   INTEGER NOT NULL DEFAULT 0,
-                    created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id         INTEGER NOT NULL UNIQUE,
+                    username        TEXT,
+                    lang            TEXT NOT NULL DEFAULT 'uz',
+                    balance_ton     REAL NOT NULL DEFAULT 0.0,
+                    balance_uzs     REAL NOT NULL DEFAULT 0.0,
+                    ref_by          INTEGER DEFAULT NULL,
+                    referral_stars  INTEGER NOT NULL DEFAULT 0,
+                    referral_count  INTEGER NOT NULL DEFAULT 0,
+                    is_banned       INTEGER NOT NULL DEFAULT 0,
+                    created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
 
                 CREATE TABLE IF NOT EXISTS orders (
@@ -85,9 +89,11 @@ class Database:
                     username            TEXT,
                     order_type          TEXT NOT NULL DEFAULT 'stars',
                     recipient_username  TEXT,
+                    stars               INTEGER NOT NULL DEFAULT 0,
                     quantity            INTEGER NOT NULL DEFAULT 0,
                     price_usd           REAL NOT NULL DEFAULT 0,
                     price_ton           REAL NOT NULL DEFAULT 0,
+                    price_uzs           REAL NOT NULL DEFAULT 0,
                     discount_percent    REAL NOT NULL DEFAULT 0,
                     status              TEXT NOT NULL DEFAULT 'pending',
                     payment_type        TEXT NOT NULL DEFAULT 'ton',
@@ -181,6 +187,7 @@ class Database:
         existing = {row[1] for row in await cursor.fetchall()}
         columns = {
             "order_type": "TEXT NOT NULL DEFAULT 'stars'",
+            "stars": "INTEGER NOT NULL DEFAULT 0",
             "quantity": "INTEGER NOT NULL DEFAULT 0",
             "discount_percent": "REAL NOT NULL DEFAULT 0.0",
             "price_uzs": "REAL NOT NULL DEFAULT 0.0",
