@@ -23,7 +23,7 @@ TEXTS: dict = {
     "btn_orders":   "📋 Buyurtmalarim",
     "btn_help":     "Yordam",
     "btn_language": "🌐 Tilni o'zgartirish",
-    "btn_myself":   "🟢 O'zimga",
+    "btn_myself":   "🟢 👤 O'zimga",
     "btn_back":     "◀️ Orqaga",
     "btn_cancel":   "❌ Bekor qilish",
     "btn_pay_ton":  "💎 TON bilan to'lash",

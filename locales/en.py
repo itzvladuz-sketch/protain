@@ -23,7 +23,7 @@ TEXTS: dict = {
     "btn_orders":   "📋 My Orders",
     "btn_help":     "Help",
     "btn_language": "🌐 Change Language",
-    "btn_myself":   "🟢 For myself",
+    "btn_myself":   "🟢 👤 For myself",
     "btn_back":     "◀️ Back",
     "btn_cancel":   "❌ Cancel",
     "btn_pay_ton":  "💎 Pay TON",
