@@ -33,10 +33,11 @@ TEXTS: dict = {
     # Stars
     "stars_menu": (
         "⭐ <b>Telegram Stars</b>\n\n"
-        "👤 Kimga olamiz? Username kiriting yoki <b>«O'zimga»</b> tugmasini bosing:"
+        "<blockquote>🟢 <b>Kimga olasiz?</b></blockquote>\n"
+        "Username kiriting yoki <b>«O'zimga»</b> tugmasini bosing:"
     ),
     "enter_recipient": (
-        "👤 <b>Kimga olamiz?</b>\n"
+        "<blockquote>🟢 <b>Kimga olasiz?</b></blockquote>\n"
         "Username kiriting yoki <b>«O'zimga»</b> bosing:"
     ),
     "enter_stars_amount": (

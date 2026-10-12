@@ -33,10 +33,11 @@ TEXTS: dict = {
     # Stars
     "stars_menu": (
         "⭐ <b>Telegram Stars</b>\n\n"
-        "👤 Кому покупаем? Введите username или нажмите <b>«Себе»</b>:"
+        "<blockquote>🟢 <b>Кому покупаем?</b></blockquote>\n"
+        "Введите username или нажмите <b>«Себе»</b>:"
     ),
     "enter_recipient": (
-        "👤 <b>Кому покупаем?</b>\n"
+        "<blockquote>🟢 <b>Кому покупаем?</b></blockquote>\n"
         "Введите username или нажмите <b>«Себе»</b>:"
     ),
     "enter_stars_amount": (
