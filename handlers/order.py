@@ -207,8 +207,44 @@ async def _notify_admin_new_order(
     order_type: str,
     price_uzs: float,
 ) -> None:
-    # User requested: "menga kelmasin habar" — to'lovlar bot orqali avtomatik tasdiqlanadi
-    logger.info("Yangi buyurtma #{}: {} ({} so'm) - admin xabari o'chirilgan", order_id, order_type, price_uzs)
+    db = Database(config.database_path)
+    order = await db.get_order(order_id)
+    recipient = (order.get("recipient_username") or "") if order else ""
+    qty = int(order.get("quantity") or 1) if order else 1
+
+    if order_type == "stars":
+        desc = f"{qty} Stars"
+    elif order_type == "premium":
+        desc = f"{qty} oy Premium"
+    elif order_type == "topup":
+        desc = "Balans to'ldirish"
+    else:
+        desc = f"{qty} Stars Gift"
+
+    rec_line = f"👤 Qabul qiluvchi: @{recipient}\n" if recipient and recipient != "self" else ""
+
+    admin_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"✅ #{order_id} Tasdiqlash va yuborish", callback_data=f"admin_confirm:{order_id}")],
+        [InlineKeyboardButton(text=f"❌ #{order_id} Bekor qilish", callback_data=f"admin_cancel:{order_id}")],
+    ])
+
+    caption = (
+        f"💳 <b>Yangi Humo to'lov kutilmoqda!</b>\n\n"
+        f"🆔 Buyurtma: #{order_id}\n"
+        f"👤 Foydalanuvchi: <code>{user_id}</code> (@{username or 'yoq'})\n"
+        f"{rec_line}"
+        f"📦 Mahsulot: <b>{desc}</b>\n"
+        f"💵 Summa: <b>{int(price_uzs):,} so'm</b>\n"
+        f"💳 Humo karta: <code>{config.humo_card_number}</code>\n\n"
+        f"<i>Kartangizga to'lov kelgach, pastdagi tugmani bosib darhol tasdiqlashingiz mumkin:</i>"
+    )
+
+    for adm_id in config.admin_user_ids:
+        try:
+            await bot.send_message(adm_id, caption, reply_markup=admin_kb, parse_mode="HTML")
+            logger.info("Adminga (#{}: {}) to'lov bildirishnomasi yuborildi", adm_id, order_id)
+        except Exception as e:
+            logger.warning("Adminga bildirishnoma yuborilmadi: {}", e)
 
 
 
@@ -277,13 +313,10 @@ async def _start_humo_topup_order(target: Message, user, amt: float, state: FSMC
     card_holder = config.humo_card_holder or "HUMO CARD"
     rate = getattr(config, "usd_to_uzs_rate", 12900.0)
 
-    # Kichik ajratuvchi summa (1-19 so'm) - bir vaqtda 2-3 kishi to'lasa adashmasligi uchun
-    import random
-    delta = random.randint(1, 19)
-    final_amt = float(int(amt) + delta)
+    final_amt = float(int(amt))
 
-    # 5 minutes expiry
-    expires_at = datetime.now() + timedelta(minutes=5)
+    # 30 minutes expiry
+    expires_at = datetime.now() + timedelta(minutes=30)
     order_id = await db.create_order(
         user_id=user.id,
         username=user.username,
@@ -856,12 +889,10 @@ async def pay_humo(callback: CallbackQuery, state: FSMContext) -> None:
     discount  = float(data.get("discount_percent", 0))
 
     rate = getattr(config, "usd_to_uzs_rate", 12900.0)
-    import random
-    delta = random.randint(1, 19)
-    price_uzs = float(round(price_usd * rate) + delta)
+    price_uzs = float(round(price_usd * rate))
 
-    # 5 minutes expiry
-    expires_at = datetime.now() + timedelta(minutes=5)
+    # 30 minutes expiry
+    expires_at = datetime.now() + timedelta(minutes=30)
 
     if service == "stars":
         order_type = "stars"
@@ -956,10 +987,35 @@ async def check_payment(callback: CallbackQuery, state: FSMContext) -> None:
         return
 
     # Pending
-    await callback.answer(
-        t(lang, "payment_not_found"),
-        show_alert=True,
+    order_type_desc = f"{order.get('quantity')} Stars" if order.get('order_type') == 'stars' else f"{order.get('quantity')} {order.get('order_type')}"
+    rec_desc = f" (@{order.get('recipient_username')})" if order.get('recipient_username') and order.get('recipient_username') != 'self' else ""
+    check_amt = int(float(order.get("price_uzs") or 0))
+
+    admin_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"✅ #{order_id} Tasdiqlash", callback_data=f"admin_confirm:{order_id}")],
+        [InlineKeyboardButton(text=f"❌ #{order_id} Bekor qilish", callback_data=f"admin_cancel:{order_id}")],
+    ])
+    for adm_id in config.admin_user_ids:
+        try:
+            await callback.bot.send_message(
+                adm_id,
+                f"🔔 <b>Foydalanuvchi to'lovni tekshirdi!</b>\n\n"
+                f"🆔 Buyurtma: #{order_id}\n"
+                f"👤 Foydalanuvchi: <code>{user.id}</code> (@{user.username or 'yoq'})\n"
+                f"📦 Mahsulot: <b>{order_type_desc}</b>{rec_desc}\n"
+                f"💵 Summa: <b>{check_amt:,} so'm</b>\n\n"
+                f"<i>Agar pul kartangizga tushgan bo'lsa, quyidagi tugmani bosib tasdiqlang:</i>",
+                reply_markup=admin_kb,
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+    alert_text = (
+        "⏳ To'lov hali tasdiqlanmadi.\n\n"
+        "Agar pulni o'tkazgan bo'lsangiz, chekni (skrinshotni) shu chatga rasm sifatida yuboring — adminga darhol yetib boradi va tasdiqlanadi!"
     )
+    await callback.answer(alert_text, show_alert=True)
 
 
 @router.message(OrderFlow.waiting_payment)
@@ -1127,3 +1183,42 @@ async def admin_confirm_payment(callback: CallbackQuery) -> None:
         logger.exception("Fragment error on admin confirm: {}", exc)
         await db.set_order_status(order_id, "failed", error_message=str(exc))
         await callback.answer(f"Fragment xatosi: {exc}", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("admin_cancel:"))
+async def admin_cancel_order(callback: CallbackQuery) -> None:
+    config = BotConfig.load()
+    user = callback.from_user
+    if not user or user.id not in config.admin_user_ids:
+        await callback.answer("Ruxsat yo'q!", show_alert=True)
+        return
+
+    order_id = int(callback.data.split(":", 1)[1])
+    db = Database(config.database_path)
+    order = await db.get_order(order_id)
+    if not order:
+        await callback.answer("Buyurtma topilmadi!", show_alert=True)
+        return
+
+    if order["status"] not in ("pending", "processing"):
+        await callback.answer(f"Buyurtma #{order_id} allaqachon {order['status']}!", show_alert=True)
+        return
+
+    await db.set_order_status(order_id, "cancelled")
+    user_id = int(order["user_id"])
+    lang = await db.get_user_lang(user_id)
+    try:
+        await callback.bot.send_message(
+            user_id,
+            f"❌ <b>Sizning #{order_id}-raqamli buyurtmangiz bekor qilindi.</b>\n\n"
+            f"Savollar bo'lsa @{config.support_username or 'admin'} ga murojaat qiling.",
+            parse_mode="HTML",
+        )
+    except Exception:
+        pass
+
+    await callback.message.edit_text(
+        f"❌ <b>Buyurtma #{order_id} admin tomonidan bekor qilindi.</b>",
+        parse_mode="HTML",
+    )
+    await callback.answer("Bekor qilindi!")

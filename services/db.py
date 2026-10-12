@@ -22,7 +22,7 @@ from loguru import logger
 # ─────────────────────────────────────────────────────────────────────────────
 DEFAULT_PRICES = [
     # (service_key, base_price_usd, commission_percent, discount_percent, min_qty, max_qty)
-    ("stars",        0.015,  5.0, 0.0,    50,    50000),
+    ("stars",        0.015,  8.5168, 0.0,    50,    50000),
     ("premium_1m",   3.99,   0.0, 0.0,    1,     1),
     ("premium_3m",   9.99,   0.0, 0.0,    1,     1),
     ("premium_6m",   17.99,  0.0, 0.0,    1,     1),
@@ -212,8 +212,8 @@ class Database:
                     """,
                     (service, base_usd, comm, disc, min_q, max_q),
                 )
-            # Faqat stars uchun 5%, qolgan barcha xizmatlarga 0% komissiya
-            await db.execute("UPDATE prices SET commission_percent = 5.0 WHERE service = 'stars'")
+            # Faqat stars uchun 8.5168% (50 Stars = 10,499 so'm), qolgan barcha xizmatlarga 0% komissiya
+            await db.execute("UPDATE prices SET commission_percent = 8.5168 WHERE service = 'stars'")
             await db.execute("UPDATE prices SET commission_percent = 0.0 WHERE service != 'stars'")
             await db.commit()
             Database._prices_cache.clear()
@@ -354,12 +354,12 @@ class Database:
         if rows:
             return rows[0]
 
-        # 2. Tolerant match (within 25 UZS) if user sent flat amount without delta
+        # 2. Tolerant match (within 50 UZS) if user sent flat amount without delta (e.g. 10499 vs 10500)
         rows = await self._fetch(
             """
             SELECT * FROM orders
             WHERE payment_type = 'humo' AND status = 'pending'
-            AND ABS(price_uzs - ?) <= 25
+            AND ABS(price_uzs - ?) <= 50
             AND expires_at >= ?
             ORDER BY id ASC LIMIT 1
             """,
