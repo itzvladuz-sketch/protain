@@ -118,8 +118,8 @@ class FragmentAPIService:
         try:
             decoded = base64.b64decode(cookies_base64).decode("utf-8")
             parsed = json.loads(decoded)
-            if not isinstance(parsed, dict):
-                raise ValueError("cookies JSON должен быть объектом")
+            if not isinstance(parsed, (dict, list)):
+                raise ValueError("cookies JSON должен быть объектом или списком")
         except Exception as exc:
             logger.warning("FRAGMENT_COOKIES_BASE64 не похож на Base64 JSON: {}", exc)
             return cookies_base64
