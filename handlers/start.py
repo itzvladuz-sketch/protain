@@ -112,12 +112,15 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
                 pass
 
     if existing.get("lang"):
-        name = user.full_name or user.username or "User"
+        name = f"@{user.username}" if user.username else (user.full_name or "Foydalanuvchi")
         if existing.get("is_banned"):
             await message.answer(t(lang, "error_banned", support=config.support_username))
             return
+        from services.currency import format_balance
+        user_num = existing.get("id", 1)
+        bal_str = format_balance(float(existing.get("balance_uzs") or 0.0), lang, config)
         await message.answer(
-            t(lang, "welcome", name=name),
+            t(lang, "welcome", name=name, user_num=user_num, balance=bal_str),
             reply_markup=_main_menu_keyboard(lang),
             parse_mode="HTML",
         )
@@ -144,12 +147,16 @@ async def set_lang(callback: CallbackQuery, state: FSMContext) -> None:
     if not user:
         return
 
-    await db.get_or_create_user(user.id, user.username)
+    db_user = await db.get_or_create_user(user.id, user.username)
     await db.update_user_lang(user.id, lang)
 
-    name = user.full_name or user.username or "User"
+    from services.currency import format_balance
+    user_num = db_user.get("id", 1)
+    bal_str = format_balance(float(db_user.get("balance_uzs") or 0.0), lang, config)
+
+    name = f"@{user.username}" if user.username else (user.full_name or "Foydalanuvchi")
     await callback.message.edit_text(
-        t(lang, "welcome", name=name),
+        t(lang, "welcome", name=name, user_num=user_num, balance=bal_str),
         reply_markup=_main_menu_keyboard(lang),
         parse_mode="HTML",
     )
@@ -188,8 +195,9 @@ async def menu_balance(callback: CallbackQuery) -> None:
         [InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="balance:topup")],
         [InlineKeyboardButton(text=t(lang, "btn_back"),  callback_data="back:main")],
     ])
+    user_num = db_user.get("id", 1)
     await callback.message.edit_text(
-        t(lang, "balance_info", balance=formatted_bal, balance_uzs=int(balance_uzs)),
+        t(lang, "balance_info", balance=formatted_bal, balance_uzs=int(balance_uzs), user_num=user_num),
         reply_markup=balance_kb,
         parse_mode="HTML",
     )
@@ -284,9 +292,13 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext) -> None:
 
     db_user = await db.get_or_create_user(user.id, user.username)
     lang = db_user.get("lang", "uz")
+    from services.currency import format_balance
+    user_num = db_user.get("id", 1)
+    bal_str = format_balance(float(db_user.get("balance_uzs") or 0.0), lang, config)
+    name = f"@{user.username}" if user.username else (user.full_name or "Foydalanuvchi")
 
     await callback.message.edit_text(
-        t(lang, "main_menu"),
+        t(lang, "main_menu", name=name, user_num=user_num, balance=bal_str),
         reply_markup=_main_menu_keyboard(lang),
         parse_mode="HTML",
     )

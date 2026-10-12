@@ -6,11 +6,15 @@ TEXTS: dict = {
 
     # Main menu
     "welcome": (
-        "👋 Hello, <b>{name}</b>!\n\n"
+        "👋 Hello, {name}\n"
+        "🆔 User ID: {user_num}\n"
+        "┗👛 Balance: {balance}\n\n"
         "Please select a service:"
     ),
     "main_menu": (
-        "👋 <b>Main Menu</b>\n\n"
+        "👋 Hello, {name}\n"
+        "🆔 User ID: {user_num}\n"
+        "┗👛 Balance: {balance}\n\n"
         "Please select a service:"
     ),
 
@@ -105,7 +109,8 @@ TEXTS: dict = {
 
     # Balance
     "balance_info": (
-        "💰 <b>Your balance:</b> <b>{balance}</b>\n\n"
+        "🆔 User ID: {user_num}\n"
+        "┗👛 Balance: {balance}\n\n"
         "To top up your balance, click the button below:"
     ),
     "btn_topup": "➕ Top Up",

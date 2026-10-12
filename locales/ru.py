@@ -6,11 +6,15 @@ TEXTS: dict = {
 
     # Главное меню
     "welcome": (
-        "👋 Здравствуйте, <b>{name}</b>!\n\n"
+        "👋 Здравствуйте, {name}\n"
+        "🆔 User ID: {user_num}\n"
+        "┗👛 Баланс: {balance}\n\n"
         "Выберите услугу:"
     ),
     "main_menu": (
-        "👋 <b>Главное меню</b>\n\n"
+        "👋 Здравствуйте, {name}\n"
+        "🆔 User ID: {user_num}\n"
+        "┗👛 Баланс: {balance}\n\n"
         "Выберите услугу:"
     ),
 
@@ -105,7 +109,8 @@ TEXTS: dict = {
 
     # Баланс
     "balance_info": (
-        "💰 <b>Ваш баланс:</b> <b>{balance}</b>\n\n"
+        "🆔 User ID: {user_num}\n"
+        "┗👛 Баланс: {balance}\n\n"
         "Для пополнения баланса нажмите кнопку ниже:"
     ),
     "btn_topup": "➕ Пополнить",

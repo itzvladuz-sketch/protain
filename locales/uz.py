@@ -6,11 +6,15 @@ TEXTS: dict = {
 
     # Asosiy menyu
     "welcome": (
-        "👋 Assalomu alaykum, <b>{name}</b>!\n\n"
+        "👋 Assalomu alaykum, {name}\n"
+        "🆔 User ID: {user_num}\n"
+        "┗👛 Balans: {balance}\n\n"
         "Quyidagi xizmatlardan birini tanlang:"
     ),
     "main_menu": (
-        "👋 <b>Asosiy menyu</b>\n\n"
+        "👋 Assalomu alaykum, {name}\n"
+        "🆔 User ID: {user_num}\n"
+        "┗👛 Balans: {balance}\n\n"
         "Quyidagi xizmatlardan birini tanlang:"
     ),
 
@@ -105,7 +109,8 @@ TEXTS: dict = {
 
     # Balans
     "balance_info": (
-        "💰 <b>Sizning balansingiz:</b> <b>{balance}</b>\n\n"
+        "🆔 User ID: {user_num}\n"
+        "┗👛 Balans: {balance}\n\n"
         "Balansni to'ldirish uchun quyidagi tugmani bosing:"
     ),
     "btn_topup": "➕ To'ldirish",

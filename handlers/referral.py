@@ -234,9 +234,14 @@ async def handle_sub_check(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer(t(lang, "sub_verified"))
 
     from handlers.start import _main_menu_keyboard
-    name = user.full_name or user.username or "User"
+    from services.currency import format_balance
+    db_user = await db.get_or_create_user(user.id, user.username)
+    user_num = db_user.get("id", 1)
+    bal_str = format_balance(float(db_user.get("balance_uzs") or 0.0), lang, config)
+    name = f"@{user.username}" if user.username else (user.full_name or "Foydalanuvchi")
+
     await callback.message.edit_text(
-        t(lang, "welcome", name=name),
+        t(lang, "welcome", name=name, user_num=user_num, balance=bal_str),
         reply_markup=_main_menu_keyboard(lang),
         parse_mode="HTML",
     )
