@@ -22,6 +22,7 @@ import os
 import time
 from typing import Any, Dict, Optional
 
+import aiohttp
 from loguru import logger
 
 try:
@@ -51,14 +52,22 @@ class FragmentAPIService:
     def __init__(
         self,
         *,
-        wallet_mnemonic: str,
-        api_url: str,
-        api_mode: str,
-        payment_method: str,
-        cookies_base64: Optional[str],
+        wallet_mnemonic: str = "",
+        api_url: str = "https://api.fragment-api.space",
+        api_mode: str = "kyc",
+        payment_method: str = "ton",
+        cookies_base64: Optional[str] = None,
         wallet_address: Optional[str] = None,
         account_index: Optional[int] = None,
+        api_key: Optional[str] = None,
     ):
+        self.api_key = (api_key or os.getenv("FRAGMENT_API_KEY", "")).strip() or None
+        if self.api_key:
+            self.is_fragment_uz = True
+            logger.info("FragmentAPIService: fragment-api.uz provayderi faollashtirildi.")
+            return
+
+        self.is_fragment_uz = False
         self.wallet_mnemonic_base64 = self._as_base64_seed(wallet_mnemonic)
         self.api_url = api_url
         self.api_mode = api_mode
@@ -117,8 +126,40 @@ class FragmentAPIService:
         return cookies_base64
 
     async def check_health(self) -> Dict[str, Any]:
-        """Call `get_rates()` once and return a compact health result."""
+        """Call health check once and return a compact health result."""
         started = time.monotonic()
+        if getattr(self, "is_fragment_uz", False):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        "https://fragment-api.uz/api/v1/wallet/balance",
+                        headers={"X-API-Key": self.api_key, "User-Agent": "Mozilla/5.0"},
+                        json={},
+                        timeout=aiohttp.ClientTimeout(total=10),
+                    ) as resp:
+                        data = await resp.json()
+                        if data.get("ok"):
+                            res = data.get("result", {})
+                            return {
+                                "ok": True,
+                                "provider": "fragment-api.uz",
+                                "project": res.get("project", ""),
+                                "wallet": res.get("address", ""),
+                                "balance_ton": res.get("balance_ton", "0"),
+                                "response_time": round(time.monotonic() - started, 2),
+                            }
+                        return {
+                            "ok": False,
+                            "error": data.get("message", "Xatolik"),
+                            "response_time": round(time.monotonic() - started, 2),
+                        }
+            except Exception as exc:
+                return {
+                    "ok": False,
+                    "error": str(exc),
+                    "response_time": round(time.monotonic() - started, 2),
+                }
+
         try:
             rates = await self.get_rates()
             return {
@@ -135,6 +176,14 @@ class FragmentAPIService:
 
     async def get_rates(self) -> Dict[str, float]:
         """Return Fragment commission rates for both modes."""
+        if getattr(self, "is_fragment_uz", False):
+            return {
+                "no_kyc_percent": 0.0,
+                "kyc_percent": 0.0,
+                "no_kyc_decimal": 0.0,
+                "kyc_decimal": 0.0,
+            }
+
         if not self.client:
             raise FragmentAPIError("Fragment API client не инициализирован")
 
@@ -153,18 +202,32 @@ class FragmentAPIService:
 
     async def get_prices(self) -> Dict[str, Any]:
         """Return current API prices including TON and USDT-on-TON fields."""
+        if getattr(self, "is_fragment_uz", False):
+            return {}
         if not self.client:
             raise FragmentAPIError("Fragment API client не инициализирован")
         return await asyncio.to_thread(self.client.get_prices)
 
     async def estimate_stars_price_usd(self, stars_count: int) -> float:
-        """Estimate USD price for checkout before the real Fragment purchase.
+        """Estimate USD price for checkout before the real Fragment purchase."""
+        if getattr(self, "is_fragment_uz", False):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        "https://fragment-api.uz/api/v1/stars/pricing",
+                        headers={"X-API-Key": self.api_key, "User-Agent": "Mozilla/5.0"},
+                        json={"amount": stars_count},
+                        timeout=aiohttp.ClientTimeout(total=10),
+                    ) as resp:
+                        data = await resp.json()
+                        if data.get("ok"):
+                            price_usd = float(data["result"]["price"]["usd"])
+                            return round(price_usd, 2)
+            except Exception as exc:
+                logger.warning("fragment-api.uz dan narx olishda xatolik: {}", exc)
+            base_usd = float(os.getenv("FRAGMENT_STAR_BASE_USD", "0.015"))
+            return round(stars_count * base_usd, 2)
 
-        Fragment charges the real TON or USDT-on-TON amount during `buy_stars()`.
-        For a demo bot we only need a predictable pre-payment invoice, so the
-        base star price is read from API prices when possible and falls back to
-        `FRAGMENT_STAR_BASE_USD`.
-        """
         rates = await self.get_rates()
         base_usd_per_star = float(os.getenv("FRAGMENT_STAR_BASE_USD", "0.015"))
         try:
@@ -182,20 +245,43 @@ class FragmentAPIService:
 
     async def buy_stars(self, recipient_username: str, stars_count: int) -> str:
         """Buy Stars for `recipient_username` and return Fragment transaction id/hash."""
+        if not isinstance(stars_count, int) or isinstance(stars_count, bool) or stars_count < 1:
+            raise FragmentAPIError("Stars miqdori kamida 1 bo'lishi kerak")
+
+        raw_user = recipient_username.strip().replace("https://t.me/", "").replace("t.me/", "")
+        clean_user = raw_user[1:] if raw_user.startswith("@") else raw_user
+        if not clean_user:
+            raise FragmentAPIError("recipient_username пустой")
+
+        if getattr(self, "is_fragment_uz", False):
+            logger.info("fragment-api.uz buy_stars: username=@{}, amount={}", clean_user, stars_count)
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        "https://fragment-api.uz/api/v1/stars/buy",
+                        headers={"X-API-Key": self.api_key, "User-Agent": "Mozilla/5.0"},
+                        json={"username": clean_user, "amount": stars_count},
+                        timeout=aiohttp.ClientTimeout(total=45),
+                    ) as resp:
+                        data = await resp.json()
+                        if not data.get("ok"):
+                            err_msg = data.get("message", "Fragment-API xatosi")
+                            raise FragmentAPIError(err_msg)
+                        res = data.get("result", {})
+                        logger.info("fragment-api.uz xarid muvaffaqiyatli: {}", data)
+                        return f"Buyurtma bajarildi: {res.get('amount', stars_count)} Stars (@{clean_user})"
+            except FragmentAPIError:
+                raise
+            except Exception as exc:
+                raise FragmentAPIError(f"fragment-api.uz xatosi: {exc}") from exc
+
         if not self.client:
             raise FragmentAPIError("Fragment API client не инициализирован")
-        if not isinstance(stars_count, int) or isinstance(stars_count, bool) or stars_count < 50:
-            raise FragmentAPIError("Fragment принимает минимум 50 Stars")
 
-        username = recipient_username.strip()
-        if not username:
-            raise FragmentAPIError("recipient_username пустой")
-        if not username.startswith("@"):
-            username = f"@{username}"
-
+        formatted_username = f"@{clean_user}"
         logger.info(
             "Fragment buy_stars: username={}, amount={}, mode={}, payment_method={}",
-            username,
+            formatted_username,
             stars_count,
             self.api_mode,
             self.payment_method,
@@ -204,7 +290,7 @@ class FragmentAPIService:
         try:
             result = await asyncio.to_thread(
                 self.client.buy_stars,
-                username=username,
+                username=formatted_username,
                 amount=stars_count,
                 seed=self.wallet_mnemonic_base64,
                 cookies=self.cookies_base64,
@@ -235,6 +321,64 @@ class FragmentAPIService:
 
         logger.info("Fragment purchase complete: {}", tx_hash)
         return str(tx_hash)
+
+    async def buy_premium(self, recipient_username: str, duration_months: int) -> str:
+        """Buy Telegram Premium for recipient_username."""
+        raw_user = recipient_username.strip().replace("https://t.me/", "").replace("t.me/", "")
+        clean_user = raw_user[1:] if raw_user.startswith("@") else raw_user
+        if not clean_user:
+            raise FragmentAPIError("recipient_username bo'sh")
+
+        if getattr(self, "is_fragment_uz", False):
+            logger.info("fragment-api.uz buy_premium: username=@{}, duration={}", clean_user, duration_months)
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        "https://fragment-api.uz/api/v1/premium/buy",
+                        headers={"X-API-Key": self.api_key, "User-Agent": "Mozilla/5.0"},
+                        json={"username": clean_user, "duration": duration_months},
+                        timeout=aiohttp.ClientTimeout(total=45),
+                    ) as resp:
+                        data = await resp.json()
+                        if not data.get("ok"):
+                            err_msg = data.get("message", "Fragment-API xatosi")
+                            raise FragmentAPIError(err_msg)
+                        res = data.get("result", {})
+                        logger.info("fragment-api.uz premium xarid muvaffaqiyatli: {}", data)
+                        return f"Premium obuna: {duration_months} oy (@{clean_user})"
+            except FragmentAPIError:
+                raise
+            except Exception as exc:
+                raise FragmentAPIError(f"fragment-api.uz premium xatosi: {exc}") from exc
+
+        if not self.client:
+            raise FragmentAPIError("Fragment API client не инициализирован")
+
+        formatted_username = f"@{clean_user}"
+        try:
+            result = await asyncio.to_thread(
+                self.client.buy_premium,
+                username=formatted_username,
+                duration=duration_months,
+                seed=self.wallet_mnemonic_base64,
+                cookies=self.cookies_base64,
+                payment_method=self.payment_method,
+                wait=True,
+                wallet_address=self.wallet_address,
+                account_index=self.account_index,
+            )
+        except LibraryFragmentAPIError as exc:
+            raise FragmentAPIError(str(exc)) from exc
+        except Exception as exc:
+            raise FragmentAPIError(f"Ошибка Fragment API: {exc}") from exc
+
+        tx_hash = (
+            _value(result, "transaction_hash")
+            or _value(result, "transaction_id")
+            or _value(result, "request_id")
+            or _value(result, "id")
+        )
+        return str(tx_hash or "completed")
 
 
 # Backward-compatible alias for old imports that users may still try.

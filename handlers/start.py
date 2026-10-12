@@ -1,83 +1,293 @@
-"""Start, menu and help handlers."""
+"""Start handler: language selection, main menu, balance, help, orders history."""
+
+from __future__ import annotations
 
 from aiogram import F, Router
 from aiogram.filters import CommandStart
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import (
+    CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message,
+)
+from dotenv import load_dotenv
 
+from locales import t
 from services.config import BotConfig
+from services.db import STATUS_EMOJIS, Database
 
+load_dotenv()
 router = Router()
 
 
-def main_menu_markup(config: BotConfig) -> InlineKeyboardMarkup:
-    """Build the tiny demo menu."""
-    rows = [
-        [InlineKeyboardButton(text="Купить Stars", callback_data="buy_stars")],
-        [InlineKeyboardButton(text="Мои заказы", callback_data="my_orders")],
-        [InlineKeyboardButton(text="Справка", callback_data="help")],
-    ]
-    if config.freekassa_ready:
-        rows.append([InlineKeyboardButton(text="FreeKassa включена", callback_data="help_freekassa")])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
+class LangSelect(StatesGroup):
+    selecting = State()
 
 
-def welcome_text(config: BotConfig) -> str:
-    """Short text that explains what this repository demonstrates."""
-    return (
-        "<b>Fragment Stars demo bot</b>\n\n"
-        "Это минимальный пример: polling, оплата в TON, один эквайринг FreeKassa "
-        "и покупка Stars через Fragment API.\n\n"
-        f"Режим Fragment API: <b>{config.fragment_api_mode}</b>\n"
-        "Для реального использования рекомендуется <b>KYC режим</b>: он стабильнее, "
-        "потому что API работает с вашей авторизованной Fragment-сессией."
-        f"\nМетод оплаты Fragment: <b>{config.fragment_payment_method}</b>."
-    )
+# ─── Keyboards ────────────────────────────────────────────────────────────────
 
+def _lang_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🇺🇿 O'zbek",    callback_data="set_lang:uz"),
+            InlineKeyboardButton(text="🇷🇺 Русский",   callback_data="set_lang:ru"),
+            InlineKeyboardButton(text="🇬🇧 English",   callback_data="set_lang:en"),
+        ]
+    ])
+
+
+def _main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=t(lang, "btn_stars"),   callback_data="menu:stars"),
+            InlineKeyboardButton(text=t(lang, "btn_premium"), callback_data="menu:premium", style="primary"),
+        ],
+        [
+            InlineKeyboardButton(text=t(lang, "btn_gift"),    callback_data="menu:gift"),
+            InlineKeyboardButton(text=t(lang, "btn_balance"), callback_data="menu:balance", style="success"),
+        ],
+        [
+            InlineKeyboardButton(text=t(lang, "btn_referral"), callback_data="menu:referral"),
+            InlineKeyboardButton(text=t(lang, "btn_orders"),  callback_data="menu:orders"),
+        ],
+        [
+            InlineKeyboardButton(text=t(lang, "btn_help"),    callback_data="menu:help", style="danger"),
+            InlineKeyboardButton(text=t(lang, "btn_language"), callback_data="menu:language"),
+        ],
+    ])
+
+
+# ─── /start ──────────────────────────────────────────────────────────────────
 
 @router.message(CommandStart())
-async def cmd_start(message: Message) -> None:
-    """Show the main menu."""
+async def cmd_start(message: Message, state: FSMContext) -> None:
+    await state.clear()
     config = BotConfig.load()
-    await message.answer(welcome_text(config), reply_markup=main_menu_markup(config), parse_mode="HTML")
+    db = Database(config.database_path)
+    user = message.from_user
+    if not user:
+        return
 
+    # Check start referral payload: /start ref12345 or /start ref_12345
+    ref_id = None
+    args = (message.text or "").split(maxsplit=1)
+    if len(args) > 1:
+        param = args[1].strip()
+        if param.startswith("ref_"):
+            val = param[4:]
+            if val.isdigit():
+                ref_id = int(val)
+        elif param.startswith("ref") and param[3:].isdigit():
+            ref_id = int(param[3:])
 
-@router.callback_query(F.data == "back_to_menu")
-async def back_to_menu(callback: CallbackQuery) -> None:
-    """Return to the main menu."""
-    config = BotConfig.load()
-    await callback.message.edit_text(welcome_text(config), reply_markup=main_menu_markup(config), parse_mode="HTML")
-    await callback.answer()
+    existing = await db.get_or_create_user(user.id, user.username, ref_by=ref_id)
+    lang = existing.get("lang") or "uz"
 
+    # Mandatory channel subscription check
+    from services.subscription import check_subscription, build_sub_keyboard
+    is_subscribed, unsubscribed = await check_subscription(message.bot, user.id, db)
+    if not is_subscribed:
+        await message.answer(
+            t(lang, "sub_required_title"),
+            reply_markup=build_sub_keyboard(unsubscribed, lang, ref_id),
+            parse_mode="HTML",
+        )
+        return
 
-@router.callback_query(F.data == "help")
-async def show_help(callback: CallbackQuery) -> None:
-    """Explain the happy path without product clutter."""
-    config = BotConfig.load()
-    text = (
-        "<b>Как работает пример</b>\n\n"
-        "1. Пользователь вводит username получателя и количество Stars.\n"
-        "2. Бот рассчитывает примерную сумму.\n"
-        "3. Пользователь платит TON или через FreeKassa.\n"
-        "4. Polling-monitor находит оплату.\n"
-        "5. Бот вызывает Fragment API и покупает Stars.\n\n"
-        "<b>Важно про Fragment API</b>\n"
-        "KYC режим стабильнее no_kyc. Для него заполните FRAGMENT_API_MODE=kyc "
-        "и FRAGMENT_COOKIES_BASE64 из авторизованной Fragment-сессии.\n"
-        "FRAGMENT_PAYMENT_METHOD может быть ton или usdt_ton."
+    # If user joined via referral and is subscribed, reward referrer
+    stored_ref = existing.get("ref_by") or ref_id
+    if stored_ref and stored_ref != user.id:
+        rewarded = await db.reward_referral(stored_ref, user.id, stars=2)
+        if rewarded:
+            await db.clear_user_referrer(user.id)
+            referrer_user = await db.get_user(stored_ref)
+            tot_stars = int(referrer_user.get("referral_stars") or 2) if referrer_user else 2
+            ref_lang = await db.get_user_lang(stored_ref)
+            try:
+                await message.bot.send_message(
+                    stored_ref,
+                    t(ref_lang, "referral_reward_notice", total_stars=tot_stars),
+                    parse_mode="HTML",
+                )
+            except Exception:
+                pass
+
+    if existing.get("lang"):
+        name = user.full_name or user.username or "User"
+        if existing.get("is_banned"):
+            await message.answer(t(lang, "error_banned", support=config.support_username))
+            return
+        await message.answer(
+            t(lang, "welcome", name=name),
+            reply_markup=_main_menu_keyboard(lang),
+            parse_mode="HTML",
+        )
+        return
+
+    await state.set_state(LangSelect.selecting)
+    await message.answer(
+        t("uz", "lang_select"),
+        reply_markup=_lang_keyboard(),
+        parse_mode="HTML",
     )
-    if config.support_username:
-        text += f"\n\nПоддержка: @{config.support_username}"
+
+
+@router.callback_query(F.data.startswith("set_lang:"))
+async def set_lang(callback: CallbackQuery, state: FSMContext) -> None:
+    lang = callback.data.split(":", 1)[1]
+    if lang not in ("uz", "ru", "en"):
+        await callback.answer()
+        return
+
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    await db.get_or_create_user(user.id, user.username)
+    await db.update_user_lang(user.id, lang)
+
+    name = user.full_name or user.username or "User"
     await callback.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="Назад", callback_data="back_to_menu")]]
-        ),
+        t(lang, "welcome", name=name),
+        reply_markup=_main_menu_keyboard(lang),
+        parse_mode="HTML",
+    )
+    await state.clear()
+    await callback.answer(t(lang, "language_changed"))
+
+
+# ─── Main menu callbacks ──────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "menu:language")
+async def menu_language(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(
+        t("uz", "lang_select"),
+        reply_markup=_lang_keyboard(),
         parse_mode="HTML",
     )
     await callback.answer()
 
 
-@router.callback_query(F.data == "help_freekassa")
-async def help_freekassa(callback: CallbackQuery) -> None:
-    """Small note for the only acquiring provider."""
-    await callback.answer("FreeKassa используется только через polling проверки статуса.", show_alert=True)
+@router.callback_query(F.data == "menu:balance")
+async def menu_balance(callback: CallbackQuery) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+    balance_uzs = float(db_user.get("balance_uzs") or 0.0)
+
+    from services.currency import format_balance
+    formatted_bal = format_balance(balance_uzs, lang, config)
+
+    balance_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="balance:topup")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"),  callback_data="back:main")],
+    ])
+    await callback.message.edit_text(
+        t(lang, "balance_info", balance=formatted_bal, balance_uzs=int(balance_uzs)),
+        reply_markup=balance_kb,
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:help")
+async def menu_help(callback: CallbackQuery) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    back_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")]
+    ])
+    await callback.message.edit_text(
+        t(lang, "help_text", support=config.support_username or "admin"),
+        reply_markup=back_kb,
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:orders")
+async def menu_orders(callback: CallbackQuery) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+    orders = await db.get_user_orders(user.id, limit=8)
+
+    back_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")]
+    ])
+
+    if not orders:
+        await callback.message.edit_text(
+            t(lang, "no_orders"),
+            reply_markup=back_kb,
+            parse_mode="HTML",
+        )
+        await callback.answer()
+        return
+
+    lines = [t(lang, "my_orders") + "\n"]
+    for o in orders:
+        status_key = f"status_{o['status']}"
+        type_key = f"type_{o['order_type']}"
+        emoji = STATUS_EMOJIS.get(o["status"], "•")
+        lines.append(
+            t(lang, "order_item",
+              id=o["id"],
+              type=t(lang, type_key),
+              recipient=o.get("recipient_username", "?"),
+              amount=o.get("quantity", "?"),
+              status_emoji=emoji,
+              status=t(lang, status_key))
+        )
+
+    await callback.message.edit_text(
+        "\n".join(lines),
+        reply_markup=back_kb,
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "back:main")
+async def back_to_main(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    order_id = data.get("order_id")
+    await state.clear()
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    if order_id:
+        try:
+            await db.set_order_status(int(order_id), "cancelled")
+        except Exception:
+            pass
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    await callback.message.edit_text(
+        t(lang, "main_menu"),
+        reply_markup=_main_menu_keyboard(lang),
+        parse_mode="HTML",
+    )
+    await callback.answer()

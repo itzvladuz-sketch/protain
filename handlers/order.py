@@ -1,51 +1,792 @@
-"""The complete demo order flow: recipient, amount, payment, fulfillment."""
+"""Order and balance flow handler: Stars, Premium, Gift, and Balance Topup."""
 
 from __future__ import annotations
 
-import math
 import re
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Optional
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message,
+)
+from dotenv import load_dotenv
 from loguru import logger
 
-from handlers.start import main_menu_markup
+from locales import t
 from services.config import BotConfig
 from services.db import Database
 from services.fragment_api import FragmentAPIService
-from services.freekassa import get_freekassa_service
-from services.payment_monitor import PaymentMonitor
+from services.currency import format_currency, format_balance
 from services.ton import TONService
 
+load_dotenv()
 router = Router()
 
+GIFTS_CATALOG = [
+    # (svc_key, stars_amount, emoji, {"uz": "...", "ru": "...", "en": "..."})
+    ("gift_15",        15,  "🧸", {"uz": "Ayiqcha",   "ru": "Мишка",    "en": "Teddy"}),
+    ("gift_25",        25,  "💖", {"uz": "Yurakcha",  "ru": "Сердечко", "en": "Heart"}),
+    ("gift_rose",      25,  "🌹", {"uz": "Atirgul",   "ru": "Роза",     "en": "Rose"}),
+    ("gift_cake",      50,  "🎂", {"uz": "Tort",      "ru": "Торт",     "en": "Cake"}),
+    ("gift_rocket",    50,  "🚀", {"uz": "Raketa",    "ru": "Ракета",   "en": "Rocket"}),
+    ("gift_diamond",   50,  "💎", {"uz": "Olmos",     "ru": "Алмаз",    "en": "Diamond"}),
+    ("gift_champagne", 75,  "🍾", {"uz": "Shampan",   "ru": "Шампанское", "en": "Champagne"}),
+    ("gift_box",       100, "🎁", {"uz": "Sovg'a",    "ru": "Подарок",  "en": "Gift Box"}),
+    ("gift_crown",     100, "👑", {"uz": "Toj",       "ru": "Корона",   "en": "Crown"}),
+    ("gift_trophy",    100, "🏆", {"uz": "Kubok",     "ru": "Кубок",    "en": "Trophy"}),
+]
 
-class BuyStars(StatesGroup):
-    waiting_recipient = State()
+
+# ─── FSM States ───────────────────────────────────────────────────────────────
+
+class OrderFlow(StatesGroup):
+    enter_recipient = State()
+    enter_quantity  = State()
+    confirm_order   = State()
+    waiting_payment = State()
+
+
+class TopupFlow(StatesGroup):
     waiting_amount = State()
-    choosing_payment = State()
 
 
-def _normalize_username(value: str) -> str:
-    """Normalize and validate a Telegram username for Fragment."""
-    username = value.strip().replace("https://t.me/", "").replace("t.me/", "")
-    username = username[1:] if username.startswith("@") else username
-    if not re.fullmatch(r"[A-Za-z0-9_]{5,32}", username):
-        raise ValueError("Введите username без пробелов, например @durov")
-    return f"@{username}"
+# ─── Keyboards ────────────────────────────────────────────────────────────────
+
+def _back_kb(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")]
+    ])
 
 
-def _money(value: float, suffix: str) -> str:
-    return f"{value:.2f} {suffix}"
+def _cancel_kb(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main")]
+    ])
 
 
-async def _quote(config: BotConfig, stars: int) -> Dict[str, float]:
-    """Calculate demo invoice prices in USD, TON and RUB."""
+def _recipient_kb(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_myself"), callback_data="recipient:self")],
+        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main")],
+    ])
+
+
+def _payment_kb(lang: str, order_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_check_payment"), callback_data=f"check:{order_id}")],
+        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main")],
+    ])
+
+
+def _order_confirm_kb(
+    lang: str,
+    user_balance_uzs: float = 0.0,
+    price_uzs: float = 0.0,
+    price_formatted: str = "",
+    config: Optional[BotConfig] = None,
+    **kwargs,
+) -> InlineKeyboardMarkup:
+    if not config:
+        config = BotConfig.load()
+    bal_str = format_balance(user_balance_uzs, lang, config)
+    bal_label = f"{t(lang, 'btn_pay_balance')} ({bal_str})"
+    buttons = [
+        [InlineKeyboardButton(text=bal_label, callback_data="pay:balance")],
+        [InlineKeyboardButton(text=t(lang, "btn_pay_humo"), callback_data="pay:humo")],
+        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def _topup_presets_kb(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="10 000 so'm", callback_data="topup_amt:10000"),
+            InlineKeyboardButton(text="25 000 so'm", callback_data="topup_amt:25000"),
+        ],
+        [
+            InlineKeyboardButton(text="50 000 so'm", callback_data="topup_amt:50000"),
+            InlineKeyboardButton(text="100 000 so'm", callback_data="topup_amt:100000"),
+        ],
+        [
+            InlineKeyboardButton(text="200 000 so'm", callback_data="topup_amt:200000"),
+            InlineKeyboardButton(text="500 000 so'm", callback_data="topup_amt:500000"),
+        ],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:balance")],
+    ])
+
+
+async def _stars_presets_kb(lang: str, config: BotConfig, db: Database) -> InlineKeyboardMarkup:
+    price_row = await db.get_price("stars")
+    base_usd = float(price_row["base_price_usd"]) if price_row else 0.015
+    commission = float(price_row["commission_percent"]) / 100 if price_row else 0.05
+    discount = float(price_row.get("discount_percent", 0)) if price_row else 0.0
+
+    presets = [50, 75, 100, 200, 350, 400, 500]
+    buttons = []
+    for qty in presets:
+        total_usd = base_usd * qty * (1 + commission)
+        if discount > 0:
+            total_usd = total_usd * (1 - discount / 100)
+        price_str = format_currency(total_usd, lang, config)
+        buttons.append(InlineKeyboardButton(text=f"⭐ {qty} — {price_str}", callback_data=f"stars_qty:{qty}"))
+
+    custom_text = {
+        "uz": "✏️ Boshqa miqdor",
+        "ru": "✏️ Другое",
+        "en": "✏️ Custom",
+    }.get(lang, "✏️ Boshqa miqdor")
+    buttons.append(InlineKeyboardButton(text=custom_text, callback_data="stars_qty:custom"))
+
+    keyboard = []
+    row = []
+    for btn in buttons:
+        row.append(btn)
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+
+    keyboard.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")])
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+# ─── Utility ──────────────────────────────────────────────────────────────────
+
+def _normalize_username(raw: str) -> str:
+    u = raw.strip().replace("https://t.me/", "").replace("t.me/", "").lstrip("@")
+    if not re.fullmatch(r"[A-Za-z0-9_]{4,32}", u):
+        raise ValueError("invalid")
+    return u
+
+
+async def _calc_price(config: BotConfig, service: str, quantity: int = 1) -> dict:
+    """Return {price_usd, price_ton, discount_percent}."""
+    db = Database(config.database_path)
+    price_row = await db.get_price(service)
+    if not price_row:
+        raise ValueError(f"Price not found for {service}")
+
+    base_usd = float(price_row["base_price_usd"])
+    commission = float(price_row["commission_percent"]) / 100
+    discount = float(price_row["discount_percent"])
+
+    if service == "stars":
+        total_usd = base_usd * quantity * (1 + commission)
+    else:
+        total_usd = base_usd * (1 + commission)
+
+    if discount > 0:
+        total_usd = total_usd * (1 - discount / 100)
+
+    total_usd = round(total_usd, 4)
+
+    try:
+        ton_service = TONService(config.ton_wallet_address, config.toncenter_api_key)
+        rate = await ton_service.get_ton_usd_rate()
+        price_ton = round(total_usd / rate, 6)
+    except Exception:
+        price_ton = round(total_usd / 3.5, 6)
+
+    return {"price_usd": total_usd, "price_ton": price_ton, "discount_percent": discount}
+
+
+# ─── Balance Top Up Flow ──────────────────────────────────────────────────────
+
+async def _notify_admin_new_order(
+    bot,
+    config: BotConfig,
+    order_id: int,
+    user_id: int,
+    username: str,
+    order_type: str,
+    price_uzs: float,
+) -> None:
+    # User requested: "menga kelmasin habar" — to'lovlar bot orqali avtomatik tasdiqlanadi
+    logger.info("Yangi buyurtma #{}: {} ({} so'm) - admin xabari o'chirilgan", order_id, order_type, price_uzs)
+
+
+
+@router.callback_query(F.data == "balance:topup")
+async def balance_topup(callback: CallbackQuery, state: FSMContext) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    await state.set_state(TopupFlow.waiting_amount)
+    await callback.message.edit_text(
+        t(lang, "balance_topup_menu"),
+        reply_markup=_topup_presets_kb(lang),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("topup_amt:"), TopupFlow.waiting_amount)
+async def topup_preset_chosen(callback: CallbackQuery, state: FSMContext) -> None:
+    raw = callback.data.split(":", 1)[1]
+    try:
+        amt = float(raw)
+    except ValueError:
+        return
+    await _start_humo_topup_order(callback.message, callback.from_user, amt, state)
+    await callback.answer()
+
+
+@router.message(TopupFlow.waiting_amount)
+async def topup_manual_amount(message: Message, state: FSMContext) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = message.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    raw = (message.text or "").strip().replace(" ", "").replace(",", "")
+    try:
+        amt = float(raw)
+        if amt < 5000 or amt > 50_000_000:
+            raise ValueError
+    except ValueError:
+        await message.answer(t(lang, "balance_topup_min_error", min=5000), reply_markup=_topup_presets_kb(lang), parse_mode="HTML")
+        return
+
+    await _start_humo_topup_order(message, user, amt, state)
+
+
+async def _start_humo_topup_order(target: Message, user, amt: float, state: FSMContext) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    card_num = config.humo_card_number or "9860 **** **** ****"
+    card_holder = config.humo_card_holder or "HUMO CARD"
+    rate = getattr(config, "usd_to_uzs_rate", 12900.0)
+
+    # 5 minutes expiry
+    expires_at = datetime.now() + timedelta(minutes=5)
+    order_id = await db.create_order(
+        user_id=user.id,
+        username=user.username,
+        order_type="topup",
+        recipient_username=user.username or "self",
+        quantity=1,
+        price_usd=round(amt / rate, 2),
+        price_ton=0.0,
+        price_uzs=float(amt),
+        discount_percent=0.0,
+        payment_type="humo",
+        payment_address=card_num,
+        payment_comment=f"HUMO-{user.id}",
+        expires_at=expires_at,
+    )
+
+    await state.update_data(order_id=order_id)
+    await state.set_state(OrderFlow.waiting_payment)
+    text = t(lang, "humo_payment_instructions",
+             card_number=card_num,
+             card_holder=card_holder,
+             amount=int(amt))
+    try:
+        await target.edit_text(text, reply_markup=_payment_kb(lang, order_id), parse_mode="HTML")
+    except Exception:
+        await target.answer(text, reply_markup=_payment_kb(lang, order_id), parse_mode="HTML")
+
+    # Notify admin
+    await _notify_admin_new_order(target.bot, config, order_id, user.id, user.username or "", "topup", amt)
+
+
+# ─── Stars flow ───────────────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "menu:stars")
+async def stars_menu(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+    price_row = await db.get_price("stars")
+
+    if not price_row or not price_row.get("is_active"):
+        await callback.message.edit_text(t(lang, "error_general"), reply_markup=_back_kb(lang), parse_mode="HTML")
+        await callback.answer()
+        return
+
+    await state.update_data(service="stars")
+    await state.set_state(OrderFlow.enter_recipient)
+
+    await callback.message.edit_text(
+        t(lang, "stars_menu"),
+        reply_markup=_recipient_kb(lang),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+# ─── Premium flow ─────────────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "menu:premium")
+async def premium_menu(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    services = ["premium_1m", "premium_3m", "premium_6m", "premium_12m"]
+    durations = {
+        "uz": {"premium_1m": "1 oy", "premium_3m": "3 oy", "premium_6m": "6 oy", "premium_12m": "12 oy"},
+        "ru": {"premium_1m": "1 мес", "premium_3m": "3 мес", "premium_6m": "6 мес", "premium_12m": "12 мес"},
+        "en": {"premium_1m": "1 mo", "premium_3m": "3 mo", "premium_6m": "6 mo", "premium_12m": "12 mo"},
+    }
+    buttons = []
+    for svc in services:
+        p = await db.get_price(svc)
+        if p and p.get("is_active"):
+            usd = float(p["base_price_usd"]) * (1 + float(p["commission_percent"]) / 100)
+            disc = float(p.get("discount_percent", 0))
+            if disc:
+                usd = usd * (1 - disc / 100)
+            price_str = format_currency(usd, lang, config)
+            dur = durations.get(lang, durations["uz"])[svc]
+            disc_badge = f" (-{disc:.0f}%)" if disc else ""
+            buttons.append([InlineKeyboardButton(
+                text=f"👑 {dur} — {price_str}{disc_badge}",
+                callback_data=f"premium:{svc}"
+            )])
+
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")])
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    await callback.message.edit_text(
+        t(lang, "premium_menu"),
+        reply_markup=kb,
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("premium:"))
+async def premium_selected(callback: CallbackQuery, state: FSMContext) -> None:
+    svc = callback.data.split(":", 1)[1]
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    dur_months = {"premium_1m": 1, "premium_3m": 3, "premium_6m": 6, "premium_12m": 12}.get(svc, 1)
+    await state.update_data(service=svc, quantity=dur_months)
+    await state.set_state(OrderFlow.enter_recipient)
+
+    await callback.message.edit_text(
+        t(lang, "enter_recipient"),
+        reply_markup=_recipient_kb(lang),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+# ─── Gift flow (2 ta ustun, 100 Stars gacha) ──────────────────────────────────
+
+@router.callback_query(F.data == "menu:gift")
+async def gift_menu(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    buttons = []
+    for svc, stars_cnt, emoji, names in GIFTS_CATALOG:
+        p = await db.get_price(svc)
+        if not p or not p.get("is_active"):
+            # Fallback calculate if not yet in db
+            usd = round(stars_cnt * 0.015 * 1.05, 4)
+        else:
+            usd = float(p["base_price_usd"]) * (1 + float(p["commission_percent"]) / 100)
+            disc = float(p.get("discount_percent", 0))
+            if disc:
+                usd = usd * (1 - disc / 100)
+        price_str = format_currency(usd, lang, config)
+        name = names.get(lang, names["uz"])
+        btn_text = f"{emoji} {name} — {price_str}"
+        buttons.append(InlineKeyboardButton(text=btn_text, callback_data=f"gift:{svc}"))
+
+    # 2 ta ustun (2 columns) qilib joylash
+    keyboard = []
+    row = []
+    for btn in buttons:
+        row.append(btn)
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+
+    keyboard.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")])
+    kb = InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    await callback.message.edit_text(
+        t(lang, "gift_menu"),
+        reply_markup=kb,
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("gift:"))
+async def gift_selected(callback: CallbackQuery, state: FSMContext) -> None:
+    svc = callback.data.split(":", 1)[1]
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    gift_item = next((g for g in GIFTS_CATALOG if g[0] == svc), None)
+    if gift_item:
+        amt = gift_item[1]
+        name = f"{gift_item[2]} {gift_item[3].get(lang, gift_item[3]['uz'])}"
+    else:
+        amt = 50
+        name = "Gift"
+
+    await state.update_data(service=svc, quantity=amt, gift_name=name)
+    await state.set_state(OrderFlow.enter_recipient)
+
+    await callback.message.edit_text(
+        t(lang, "enter_recipient"),
+        reply_markup=_recipient_kb(lang),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+# ─── Recipient self (O'zimga) ─────────────────────────────────────────────────
+
+@router.callback_query(F.data == "recipient:self", OrderFlow.enter_recipient)
+async def recipient_self(callback: CallbackQuery, state: FSMContext) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    if not user.username:
+        await callback.answer(t(lang, "no_username_set"), show_alert=True)
+        return
+
+    username = user.username
+    await state.update_data(recipient=username)
+
+    data = await state.get_data()
+    service = data.get("service", "stars")
+
+    if service == "stars":
+        price_row = await db.get_price("stars")
+        min_q = price_row["min_qty"] if price_row else 50
+        max_q = price_row["max_qty"] if price_row else 50000
+        await state.update_data(min_qty=min_q, max_qty=max_q)
+        await state.set_state(OrderFlow.enter_quantity)
+        kb = await _stars_presets_kb(lang, config, db)
+        await callback.message.edit_text(
+            t(lang, "select_stars_amount", recipient=username),
+            reply_markup=kb,
+            parse_mode="HTML",
+        )
+    else:
+        await _show_order_summary(callback.message, state, lang, config, user_id=user.id)
+
+    await callback.answer()
+
+
+# ─── Recipient manual text entry ──────────────────────────────────────────────
+
+@router.message(OrderFlow.enter_recipient)
+async def enter_recipient(message: Message, state: FSMContext) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = message.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    try:
+        username = _normalize_username(message.text or "")
+    except ValueError:
+        await message.answer(t(lang, "username_invalid"), reply_markup=_recipient_kb(lang), parse_mode="HTML")
+        return
+
+    await state.update_data(recipient=username)
+    data = await state.get_data()
+    service = data.get("service", "stars")
+
+    if service == "stars":
+        price_row = await db.get_price("stars")
+        min_q = price_row["min_qty"] if price_row else 50
+        max_q = price_row["max_qty"] if price_row else 50000
+        await state.update_data(min_qty=min_q, max_qty=max_q)
+        await state.set_state(OrderFlow.enter_quantity)
+        kb = await _stars_presets_kb(lang, config, db)
+        await message.answer(
+            t(lang, "select_stars_amount", recipient=username),
+            reply_markup=kb,
+            parse_mode="HTML",
+        )
+    else:
+        await _show_order_summary(message, state, lang, config, user_id=user.id)
+
+
+# ─── Quantity entry (Stars only) ──────────────────────────────────────────────
+
+@router.callback_query(F.data.startswith("stars_qty:"), OrderFlow.enter_quantity)
+async def stars_qty_selected(callback: CallbackQuery, state: FSMContext) -> None:
+    val = callback.data.split(":", 1)[1]
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    if val == "custom":
+        data = await state.get_data()
+        min_q = data.get("min_qty", 50)
+        max_q = data.get("max_qty", 50000)
+        await callback.message.edit_text(
+            t(lang, "enter_stars_amount", min=min_q, max=max_q),
+            reply_markup=_cancel_kb(lang),
+            parse_mode="HTML",
+        )
+        await callback.answer()
+        return
+
+    qty = int(val)
+    await state.update_data(quantity=qty)
+    await state.set_state(OrderFlow.confirm_order)
+    await _show_order_summary(callback.message, state, lang, config, user_id=user.id)
+    await callback.answer()
+
+@router.message(OrderFlow.enter_quantity)
+async def enter_quantity(message: Message, state: FSMContext) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = message.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+    data = await state.get_data()
+    min_q = data.get("min_qty", 50)
+    max_q = data.get("max_qty", 50000)
+
+    raw = (message.text or "").strip().replace(" ", "").replace(",", "")
+    if not raw.isdigit():
+        await message.answer(t(lang, "error_try_again"), parse_mode="HTML")
+        return
+
+    qty = int(raw)
+    if qty < min_q or qty > max_q:
+        await message.answer(
+            t(lang, "enter_stars_amount", min=min_q, max=max_q),
+            reply_markup=_cancel_kb(lang),
+            parse_mode="HTML",
+        )
+        return
+
+    await state.update_data(quantity=qty)
+    await state.set_state(OrderFlow.confirm_order)
+    await _show_order_summary(message, state, lang, config, user_id=user.id)
+
+
+async def _show_order_summary(
+    target: Message, state: FSMContext, lang: str, config: BotConfig, user_id: int
+) -> None:
+    """Calculate price and show order confirmation with balance payment option."""
+    data = await state.get_data()
+    service = data.get("service", "stars")
+    qty = data.get("quantity", 1)
+    recipient = data.get("recipient", "?")
+    gift_name = data.get("gift_name", "")
+
+    try:
+        prices = await _calc_price(config, service, qty)
+    except Exception:
+        logger.exception("Price calculation failed")
+        await target.answer(t(lang, "error_general"), parse_mode="HTML")
+        return
+
+    await state.update_data(**prices)
+
+    db = Database(config.database_path)
+    user_row = await db.get_user(user_id)
+    user_balance_uzs = float(user_row.get("balance_uzs") or 0.0) if user_row else 0.0
+    rate = getattr(config, "usd_to_uzs_rate", 12900.0)
+    price_uzs = round(prices["price_usd"] * rate)
+
+    price_formatted = format_currency(prices["price_usd"], lang, config)
+
+    disc = prices["discount_percent"]
+    disc_line = t(lang, "discount_line", discount=f"{disc:.0f}") if disc > 0 else ""
+
+    if service == "stars":
+        summary = t(lang, "order_summary_stars",
+                    amount=qty, recipient=recipient,
+                    price=price_formatted,
+                    discount_line=disc_line)
+    elif service.startswith("premium"):
+        dur_map = {
+            "uz": {"premium_1m": "1 oy", "premium_3m": "3 oy", "premium_6m": "6 oy", "premium_12m": "12 oy"},
+            "ru": {"premium_1m": "1 мес", "premium_3m": "3 мес", "premium_6m": "6 мес", "premium_12m": "12 мес"},
+            "en": {"premium_1m": "1 mo", "premium_3m": "3 mo", "premium_6m": "6 mo", "premium_12m": "12 mo"},
+        }
+        duration = dur_map.get(lang, dur_map["uz"]).get(service, service)
+        summary = t(lang, "order_summary_premium",
+                    duration=duration, recipient=recipient,
+                    price=price_formatted,
+                    discount_line=disc_line)
+    else:  # gift
+        amt = qty
+        if not gift_name:
+            for g_svc, g_qty, g_emoji, g_names in GIFTS_CATALOG:
+                if g_svc == service:
+                    gift_name = f"{g_emoji} {g_names.get(lang, g_names['uz'])}"
+                    amt = g_qty
+                    break
+            if not gift_name:
+                gift_name = "Gift"
+        summary = t(lang, "order_summary_gift",
+                    gift_name=gift_name,
+                    amount=amt, recipient=recipient,
+                    price=price_formatted,
+                    discount_line=disc_line)
+
+    await state.set_state(OrderFlow.confirm_order)
+    kb = _order_confirm_kb(
+        lang,
+        user_balance_uzs=user_balance_uzs,
+        price_uzs=float(price_uzs),
+        price_formatted=price_formatted,
+    )
+    try:
+        await target.edit_text(summary, reply_markup=kb, parse_mode="HTML")
+    except Exception:
+        await target.answer(summary, reply_markup=kb, parse_mode="HTML")
+
+
+# ─── Payment from Balance ─────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "pay:balance", OrderFlow.confirm_order)
+async def pay_balance(callback: CallbackQuery, state: FSMContext) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+    user_balance_ton = float(db_user.get("balance_ton") or 0.0)
+    user_balance_uzs = float(db_user.get("balance_uzs") or 0.0)
+    data = await state.get_data()
+
+    service   = data.get("service", "stars")
+    qty       = data.get("quantity", 1)
+    recipient = data.get("recipient", "?")
+    gift_name = data.get("gift_name", "")
+    price_usd = float(data.get("price_usd", 0))
+    price_ton = float(data.get("price_ton", 0))
+    discount  = float(data.get("discount_percent", 0))
+    rate      = getattr(config, "usd_to_uzs_rate", 12900.0)
+    price_uzs = round(price_usd * rate)
+
+    # Prioritize UZS if sufficient, else TON
+    if user_balance_uzs >= price_uzs and price_uzs > 0:
+        await db.update_user_balance_uzs(user.id, -price_uzs)
+    elif user_balance_ton >= price_ton and price_ton > 0:
+        await db.update_user_balance(user.id, -price_ton)
+    else:
+        bal_str = format_balance(user_balance_uzs, lang, config)
+        price_str = format_currency(price_usd, lang, config)
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="balance:topup")],
+            [InlineKeyboardButton(text=t(lang, "btn_pay_humo"), callback_data="pay:humo")],
+            [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")],
+        ])
+        await callback.message.edit_text(
+            f"⚠️ <b>Balansingizda yetarli mablag' yo'q!</b>\n\n"
+            f"💰 Sizning balansingiz: <b>{bal_str}</b>\n"
+            f"💳 To'lov summasi: <b>{price_str}</b>\n\n"
+            f"<i>Xarid qilish uchun avval balansni to'ldiring yoki Humo kartasi orqali to'lang:</i>",
+            reply_markup=kb,
+            parse_mode="HTML",
+        )
+        await callback.answer()
+        return
+
+    order_type = "stars" if service == "stars" else ("premium" if service.startswith("premium") else "gift")
+    order_id = await db.create_order(
+        user_id=user.id,
+        username=user.username,
+        order_type=order_type,
+        recipient_username=recipient,
+        quantity=qty,
+        price_usd=price_usd,
+        price_ton=price_ton,
+        price_uzs=float(price_uzs),
+        discount_percent=discount,
+        payment_type="balance",
+        payment_address="balance",
+        payment_comment=f"BAL-{user.id}",
+        expires_at=datetime.now() + timedelta(minutes=10),
+    )
+    await db.set_order_status(order_id, "paid")
+    await state.clear()
+
+    await callback.message.edit_text(t(lang, "paid_from_balance"), parse_mode="HTML")
+    await callback.answer()
+
+    # Instant fulfillment via Fragment API
     fragment = FragmentAPIService(
+        api_key=config.fragment_api_key,
         wallet_mnemonic=config.fragment_wallet_mnemonic,
         api_url=config.fragment_api_url,
         api_mode=config.fragment_api_mode,
@@ -54,321 +795,343 @@ async def _quote(config: BotConfig, stars: int) -> Dict[str, float]:
         wallet_address=config.fragment_wallet_address,
         account_index=config.fragment_account_index,
     )
-    ton = TONService(config.ton_wallet_address, config.toncenter_api_key)
-
-    fragment_usd = await fragment.estimate_stars_price_usd(stars)
-    total_usd = round(fragment_usd * (1 + config.service_commission_percent / 100), 2)
-    total_ton = await ton.usd_to_ton(total_usd)
-    total_rub = math.ceil(total_usd * config.usd_rub_rate * 100) / 100
-    return {"price_usd": total_usd, "total_ton": total_ton, "total_rub": total_rub}
-
-
-def _payment_keyboard(config: BotConfig) -> InlineKeyboardMarkup:
-    rows = [[InlineKeyboardButton(text="Оплатить TON", callback_data="pay_ton")]]
-    if config.freekassa_ready:
-        rows.append([InlineKeyboardButton(text="Оплатить FreeKassa", callback_data="pay_freekassa")])
-    rows.append([InlineKeyboardButton(text="Отмена", callback_data="cancel_buy")])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
-def _check_keyboard(order_id: int, payment_url: str | None = None) -> InlineKeyboardMarkup:
-    rows = []
-    if payment_url:
-        rows.append([InlineKeyboardButton(text="Открыть оплату", url=payment_url)])
-    rows.append([InlineKeyboardButton(text="Я оплатил", callback_data=f"check_order:{order_id}")])
-    rows.append([InlineKeyboardButton(text="В меню", callback_data="back_to_menu")])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
-@router.callback_query(F.data == "buy_stars")
-async def buy_stars(callback: CallbackQuery, state: FSMContext) -> None:
-    """Start the purchase flow."""
-    await state.clear()
-    await state.set_state(BuyStars.waiting_recipient)
-
-    rows = []
-    if callback.from_user and callback.from_user.username:
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text=f"Купить себе (@{callback.from_user.username})",
-                    callback_data="recipient_self",
-                )
-            ]
-        )
-    rows.append([InlineKeyboardButton(text="Отмена", callback_data="cancel_buy")])
-    await callback.message.edit_text(
-        "Введите username получателя Stars. Пример: <code>@durov</code>",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
-        parse_mode="HTML",
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "recipient_self")
-async def recipient_self(callback: CallbackQuery, state: FSMContext) -> None:
-    """Use the buyer's public Telegram username as recipient."""
-    if not callback.from_user or not callback.from_user.username:
-        await callback.answer("У вашего аккаунта нет username.", show_alert=True)
-        return
-    await state.update_data(recipient_username=f"@{callback.from_user.username}")
-    await _ask_amount(callback.message, state)
-    await callback.answer()
-
-
-@router.message(BuyStars.waiting_recipient)
-async def recipient_entered(message: Message, state: FSMContext) -> None:
-    """Store recipient username."""
-    try:
-        recipient = _normalize_username(message.text or "")
-    except ValueError as exc:
-        await message.answer(str(exc))
-        return
-    await state.update_data(recipient_username=recipient)
-    await _ask_amount(message, state)
-
-
-async def _ask_amount(target: Message, state: FSMContext) -> None:
-    config = BotConfig.load()
-    await state.set_state(BuyStars.waiting_amount)
-    await target.answer(
-        (
-            "Сколько Stars купить?\n"
-            f"Минимум: <b>{config.min_stars_amount}</b>, максимум: <b>{config.max_stars_amount}</b>."
-        ),
-        parse_mode="HTML",
-    )
-
-
-@router.message(BuyStars.waiting_amount)
-async def amount_entered(message: Message, state: FSMContext) -> None:
-    """Validate amount and show payment choices."""
-    config = BotConfig.load()
-    raw = (message.text or "").replace(" ", "")
-    if not raw.isdigit():
-        await message.answer("Введите число, например 100.")
-        return
-
-    stars = int(raw)
-    if stars < config.min_stars_amount or stars > config.max_stars_amount:
-        await message.answer(f"Допустимый диапазон: {config.min_stars_amount} - {config.max_stars_amount}.")
-        return
-
-    await message.answer("Считаю сумму...")
-    try:
-        quote = await _quote(config, stars)
-    except Exception as exc:
-        logger.exception("Не удалось рассчитать заказ")
-        await message.answer(f"Не удалось получить цену: {exc}")
-        return
-
-    await state.update_data(stars=stars, **quote)
-    data = await state.get_data()
-    await state.set_state(BuyStars.choosing_payment)
-
-    text = (
-        "<b>Проверьте заказ</b>\n\n"
-        f"Получатель: <b>{data['recipient_username']}</b>\n"
-        f"Stars: <b>{stars}</b>\n"
-        f"Примерная цена: <b>{_money(quote['price_usd'], '$')}</b>\n"
-        f"TON: <b>{_money(quote['total_ton'], 'TON')}</b>\n"
-    )
-    if config.freekassa_ready:
-        text += f"FreeKassa: <b>{_money(quote['total_rub'], '₽')}</b>\n"
-    text += "\nФинальная покупка Stars выполняется через Fragment API после оплаты."
-    await message.answer(text, reply_markup=_payment_keyboard(config), parse_mode="HTML")
-
-
-@router.callback_query(F.data == "pay_ton")
-async def pay_ton(callback: CallbackQuery, state: FSMContext) -> None:
-    """Create a TON order and show wallet/comment."""
-    config = BotConfig.load()
-    data = await _require_order_data(callback, state)
-    if not data:
-        return
-
-    db = Database(config.database_path)
-    ton = TONService(config.ton_wallet_address, config.toncenter_api_key)
-    expires_at = datetime.now() + timedelta(minutes=config.order_timeout_minutes)
-    order_id = await db.create_order(
-        user_id=callback.from_user.id,
-        username=callback.from_user.username if callback.from_user else None,
-        recipient_username=data["recipient_username"],
-        stars=int(data["stars"]),
-        price_usd=float(data["price_usd"]),
-        total_ton=float(data["total_ton"]),
-        total_rub=float(data["total_rub"]),
-        payment_type="ton",
-        payment_address=config.ton_wallet_address,
-        payment_comment="",
-        expires_at=expires_at,
-    )
-    comment = ton.generate_payment_comment(order_id)
-    await db.update_order(order_id, payment_comment=comment)
-    await state.clear()
-
-    text = (
-        f"<b>Заказ #{order_id}</b>\n\n"
-        f"Отправьте: <b>{_money(float(data['total_ton']), 'TON')}</b>\n"
-        f"Адрес: <code>{config.ton_wallet_address}</code>\n"
-        f"Комментарий: <code>{comment}</code>\n\n"
-        "Комментарий обязателен: по нему polling-monitor найдет платеж."
-    )
-    await callback.message.edit_text(text, reply_markup=_check_keyboard(order_id), parse_mode="HTML")
-    await callback.answer()
-
-
-@router.callback_query(F.data == "pay_freekassa")
-async def pay_freekassa(callback: CallbackQuery, state: FSMContext) -> None:
-    """Create a FreeKassa order and show payment link."""
-    config = BotConfig.load()
-    if not config.freekassa_ready:
-        await callback.answer("FreeKassa не настроена в .env", show_alert=True)
-        return
-
-    data = await _require_order_data(callback, state)
-    if not data:
-        return
-
-    db = Database(config.database_path)
-    expires_at = datetime.now() + timedelta(minutes=config.order_timeout_minutes)
-    order_id = await db.create_order(
-        user_id=callback.from_user.id,
-        username=callback.from_user.username if callback.from_user else None,
-        recipient_username=data["recipient_username"],
-        stars=int(data["stars"]),
-        price_usd=float(data["price_usd"]),
-        total_ton=float(data["total_ton"]),
-        total_rub=float(data["total_rub"]),
-        payment_type="freekassa",
-        payment_address="",
-        payment_comment="",
-        expires_at=expires_at,
-    )
 
     try:
-        service = get_freekassa_service(config)
-        payment = await service.create_payment(
-            order_id=order_id,
-            amount_rub=float(data["total_rub"]),
-            description=f"Telegram Stars x{int(data['stars'])}",
-            email=f"{callback.from_user.id}@telegram.local",
-            ip=config.freekassa_customer_ip,
-        )
-    except Exception as exc:
-        await db.set_status(order_id, "failed", error_message=str(exc))
+        if order_type == "premium":
+            tx = await fragment.buy_premium(recipient, qty)
+            desc = f"{qty} oy Premium"
+        elif order_type == "gift":
+            tx = await fragment.buy_stars(recipient, qty)
+            desc = f"{gift_name} ({qty} Stars)" if gift_name else f"{qty} Stars Gift"
+        else:
+            tx = await fragment.buy_stars(recipient, qty)
+            desc = f"{qty} Stars"
+
+        await db.set_order_status(order_id, "completed", fragment_tx_hash=tx)
         await callback.message.edit_text(
-            f"Не удалось создать платеж FreeKassa для заказа #{order_id}: {exc}",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="В меню", callback_data="back_to_menu")]]
-            ),
+            t(lang, "order_completed", amount=desc, recipient=recipient),
+            reply_markup=_back_kb(lang),
+            parse_mode="HTML",
         )
+    except Exception as exc:
+        logger.exception("Fragment instant fulfillment error: {}", exc)
+        if price_uzs > 0:
+            await db.update_user_balance_uzs(user.id, price_uzs)
+        elif price_ton > 0:
+            await db.update_user_balance(user.id, price_ton)
+        await db.set_order_status(order_id, "failed", error_message=str(exc))
+        await callback.message.edit_text(
+            f"❌ <b>Xatolik yuz berdi:</b>\n{exc}\n\n<i>Mablag' balansingizga qaytarildi.</i>",
+            reply_markup=_back_kb(lang),
+            parse_mode="HTML",
+        )
+
+
+# ─── Payment via Humo ────────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "pay:humo", OrderFlow.confirm_order)
+async def pay_humo(callback: CallbackQuery, state: FSMContext) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+    data = await state.get_data()
+
+    service   = data.get("service", "stars")
+    qty       = data.get("quantity", 1)
+    recipient = data.get("recipient", "?")
+    price_usd = float(data.get("price_usd", 0))
+    discount  = float(data.get("discount_percent", 0))
+
+    rate = getattr(config, "usd_to_uzs_rate", 12900.0)
+    price_uzs = round(price_usd * rate)
+
+    # 5 minutes expiry
+    expires_at = datetime.now() + timedelta(minutes=5)
+
+    if service == "stars":
+        order_type = "stars"
+    elif service.startswith("premium"):
+        order_type = "premium"
+    else:
+        order_type = "gift"
+
+    card_num = config.humo_card_number or "9860 **** **** ****"
+    card_holder = config.humo_card_holder or "ADMIN"
+
+    order_id = await db.create_order(
+        user_id=user.id,
+        username=user.username,
+        order_type=order_type,
+        recipient_username=recipient,
+        quantity=qty,
+        price_usd=price_usd,
+        price_ton=0.0,
+        price_uzs=float(price_uzs),
+        discount_percent=discount,
+        payment_type="humo",
+        payment_address=card_num,
+        payment_comment=f"HUMO-{user.id}",
+        expires_at=expires_at,
+    )
+
+    await state.update_data(order_id=order_id)
+    await state.set_state(OrderFlow.waiting_payment)
+
+    await callback.message.edit_text(
+        t(lang, "humo_payment_instructions",
+          card_number=card_num,
+          card_holder=card_holder,
+          amount=int(price_uzs)),
+        reply_markup=_payment_kb(lang, order_id),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+    # Notify admin with 1-click confirmation button
+    await _notify_admin_new_order(callback.bot, config, order_id, user.id, user.username or "", order_type, price_uzs)
+
+
+# ─── Check payment (User) ─────────────────────────────────────────────────────
+
+@router.callback_query(F.data.startswith("check:"))
+async def check_payment(callback: CallbackQuery, state: FSMContext) -> None:
+    order_id = int(callback.data.split(":", 1)[1])
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    user = callback.from_user
+    if not user:
+        return
+
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
+    order = await db.get_order(order_id)
+    if not order or order["user_id"] != user.id:
+        await callback.answer(t(lang, "error_general"), show_alert=True)
+        return
+
+    if order["status"] == "completed":
+        if order.get("order_type") == "topup":
+            user_row = await db.get_user(user.id)
+            amount_val = int(float(order.get("price_uzs") or 0.0))
+            new_bal = int(float(user_row.get("balance_uzs") or 0.0)) if user_row else amount_val
+            await callback.message.edit_text(
+                t(lang, "balance_topup_uzs_completed", amount=amount_val, new_balance=new_bal),
+                reply_markup=_back_kb(lang),
+                parse_mode="HTML",
+            )
+        else:
+            await callback.message.edit_text(
+                t(lang, "order_completed",
+                  amount=f"{order['quantity']} {order.get('order_type', '')}",
+                  recipient=order["recipient_username"]),
+                reply_markup=_back_kb(lang),
+                parse_mode="HTML",
+            )
         await callback.answer()
         return
 
-    await db.update_order(
-        order_id,
-        freekassa_payment_id=payment["payment_id"],
-        freekassa_payment_url=payment["payment_link"],
-    )
-    await state.clear()
-
-    text = (
-        f"<b>Заказ #{order_id}</b>\n\n"
-        f"К оплате FreeKassa: <b>{_money(float(data['total_rub']), '₽')}</b>\n"
-        "После оплаты бот сам проверит статус через polling."
-    )
-    await callback.message.edit_text(
-        text,
-        reply_markup=_check_keyboard(order_id, payment["payment_link"]),
-        parse_mode="HTML",
-    )
-    await callback.answer()
-
-
-async def _require_order_data(callback: CallbackQuery, state: FSMContext) -> Dict[str, Any] | None:
-    data = await state.get_data()
-    required = {"recipient_username", "stars", "price_usd", "total_ton", "total_rub"}
-    if not required.issubset(data):
-        await callback.answer("Заказ не найден, начните заново.", show_alert=True)
-        return None
-    return data
-
-
-@router.callback_query(F.data.startswith("check_order:"))
-async def check_order(callback: CallbackQuery) -> None:
-    """Manual payment check button."""
-    order_id = int(callback.data.split(":", 1)[1])
-    config = BotConfig.load()
-    monitor = PaymentMonitor(config)
-    monitor.set_bot(callback.bot)
-    order = await monitor.check_order_now(order_id)
-    if not order:
-        await callback.answer("Заказ не найден.", show_alert=True)
-        return
-
-    status = order["status"]
-    if status == "pending":
-        await callback.answer("Оплата пока не найдена. Проверьте сумму и комментарий.", show_alert=True)
-    elif status == "processing":
-        await callback.answer("Оплата найдена, Fragment API выполняет покупку.", show_alert=True)
-    elif status == "completed":
+    if order["status"] == "failed":
         await callback.message.edit_text(
-            (
-                f"Заказ #{order_id} выполнен.\n"
-                f"Fragment tx: <code>{order.get('fragment_tx_hash')}</code>"
-            ),
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="В меню", callback_data="back_to_menu")]]
-            ),
+            t(lang, "order_failed", support=config.support_username or "admin"),
+            reply_markup=_back_kb(lang),
             parse_mode="HTML",
         )
         await callback.answer()
-    elif status == "failed":
-        await callback.answer("Заказ оплачен, но Fragment API вернул ошибку. Проверьте логи.", show_alert=True)
-    elif status == "expired":
-        await callback.answer("Заказ истек.", show_alert=True)
-    else:
-        await callback.answer(f"Статус заказа: {status}", show_alert=True)
+        return
+
+    # Pending
+    await callback.answer(
+        t(lang, "payment_not_found"),
+        show_alert=True,
+    )
 
 
-@router.callback_query(F.data == "my_orders")
-async def my_orders(callback: CallbackQuery) -> None:
-    """Show a user's latest orders."""
+@router.message(OrderFlow.waiting_payment)
+async def process_user_payment_sms(message: Message, state: FSMContext) -> None:
+    from services.humo_monitor import extract_amount_uzs
+    text = message.text or message.caption or ""
+    amt = extract_amount_uzs(text)
+    if not amt:
+        return
+
     config = BotConfig.load()
     db = Database(config.database_path)
-    orders = await db.get_user_orders(callback.from_user.id)
-    if not orders:
-        text = "У вас пока нет заказов."
-    else:
-        lines = ["<b>Последние заказы</b>"]
-        for order in orders:
-            lines.append(
-                (
-                    f"#{order['id']} - {order['status']} - "
-                    f"{order['stars']} Stars для {order.get('recipient_username') or '-'}"
-                )
-            )
-        text = "\n".join(lines)
+    user = message.from_user
+    if not user:
+        return
 
-    await callback.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="В меню", callback_data="back_to_menu")]]
-        ),
-        parse_mode="HTML",
+    data = await state.get_data()
+    order_id = data.get("order_id")
+    order = None
+    if order_id:
+        order = await db.get_order(order_id)
+    if not order:
+        order = await db.find_pending_humo_order(amt)
+
+    if not order or order["user_id"] != user.id or order["status"] != "pending":
+        return
+
+    expected_uzs = float(order.get("price_uzs") or 0.0)
+    if abs(expected_uzs - amt) > 1:
+        return
+
+    lang = await db.get_user_lang(user.id)
+    order_type = str(order.get("order_type") or "stars")
+    quantity = int(order.get("quantity") or 1)
+    recipient = str(order.get("recipient_username") or "")
+
+    if order_type == "topup":
+        await db.update_user_balance_uzs(user.id, expected_uzs)
+        await db.set_order_status(order["id"], "completed")
+        user_row = await db.get_user(user.id)
+        new_bal = float(user_row.get("balance_uzs") or 0.0) if user_row else expected_uzs
+        await state.clear()
+        await message.answer(
+            t(lang, "balance_topup_uzs_completed", amount=int(expected_uzs), new_balance=int(new_bal)),
+            reply_markup=_back_kb(lang),
+            parse_mode="HTML",
+        )
+        return
+
+    # Service order
+    await db.set_order_status(order["id"], "paid")
+    fragment = FragmentAPIService(
+        api_key=config.fragment_api_key,
+        wallet_mnemonic=config.fragment_wallet_mnemonic,
+        api_url=config.fragment_api_url,
+        api_mode=config.fragment_api_mode,
+        payment_method=config.fragment_payment_method,
+        cookies_base64=config.fragment_cookies_base64,
+        wallet_address=config.fragment_wallet_address,
+        account_index=config.fragment_account_index,
     )
-    await callback.answer()
+    try:
+        if order_type == "premium":
+            tx = await fragment.buy_premium(recipient, quantity)
+            desc = f"{quantity} oy Premium"
+        elif order_type == "gift":
+            tx = await fragment.buy_stars(recipient, quantity)
+            desc = f"Gift ({quantity} Stars)"
+        else:
+            tx = await fragment.buy_stars(recipient, quantity)
+            desc = f"{quantity} Stars"
+
+        await db.set_order_status(order["id"], "completed", fragment_tx_hash=tx)
+        await state.clear()
+        await message.answer(
+            t(lang, "order_completed", amount=desc, recipient=recipient),
+            reply_markup=_back_kb(lang),
+            parse_mode="HTML",
+        )
+    except Exception as exc:
+        logger.exception("Fragment fulfillment error: {}", exc)
+        await message.answer(
+            t(lang, "order_failed", support=config.support_username or "admin"),
+            reply_markup=_back_kb(lang),
+            parse_mode="HTML",
+        )
 
 
-@router.callback_query(F.data == "cancel_buy")
-async def cancel_buy(callback: CallbackQuery, state: FSMContext) -> None:
-    """Cancel FSM flow and return to menu."""
-    await state.clear()
+# ─── Admin 1-Click Order Confirmation ─────────────────────────────────────────
+
+@router.callback_query(F.data.startswith("admin_confirm:"))
+async def admin_confirm_payment(callback: CallbackQuery) -> None:
     config = BotConfig.load()
-    await callback.message.edit_text(
-        "Покупка отменена.",
-        reply_markup=main_menu_markup(config),
-        parse_mode="HTML",
+    user = callback.from_user
+    if not user or user.id not in config.admin_user_ids:
+        await callback.answer("Ruxsat yo'q!", show_alert=True)
+        return
+
+    order_id = int(callback.data.split(":", 1)[1])
+    db = Database(config.database_path)
+    order = await db.get_order(order_id)
+    if not order:
+        await callback.answer("Buyurtma topilmadi!", show_alert=True)
+        return
+
+    if order["status"] in ("completed", "paid", "cancelled"):
+        await callback.answer(f"Buyurtma #{order_id} allaqachon {order['status']} bo'lgan!", show_alert=True)
+        return
+
+    user_id = int(order["user_id"])
+    order_type = str(order.get("order_type") or "stars")
+    price_uzs = float(order.get("price_uzs") or 0.0)
+    quantity = int(order.get("quantity") or 1)
+    recipient = str(order.get("recipient_username") or "")
+    lang = await db.get_user_lang(user_id)
+
+    if order_type == "topup":
+        await db.update_user_balance_uzs(user_id, price_uzs)
+        await db.set_order_status(order_id, "completed")
+        user_row = await db.get_user(user_id)
+        new_bal = float(user_row.get("balance_uzs") or 0.0) if user_row else price_uzs
+        try:
+            await callback.bot.send_message(
+                user_id,
+                t(lang, "balance_topup_uzs_completed", amount=int(price_uzs), new_balance=int(new_bal)),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning("Foydalanuvchiga xabar yuborilmadi: {}", e)
+
+        await callback.message.edit_text(
+            f"✅ <b>Buyurtma #{order_id} admin tomonidan tasdiqlandi!</b>\n\n"
+            f"👤 Foydalanuvchi: <code>{user_id}</code>\n"
+            f"💰 Balansga qo'shildi: <b>{int(price_uzs):,} so'm</b>",
+            parse_mode="HTML",
+        )
+        await callback.answer("✅ Balans to'ldirildi!")
+        return
+
+    # Regular service order (stars, premium, gift)
+    await db.set_order_status(order_id, "paid")
+    fragment = FragmentAPIService(
+        api_key=config.fragment_api_key,
+        wallet_mnemonic=config.fragment_wallet_mnemonic,
+        api_url=config.fragment_api_url,
+        api_mode=config.fragment_api_mode,
+        payment_method=config.fragment_payment_method,
+        cookies_base64=config.fragment_cookies_base64,
+        wallet_address=config.fragment_wallet_address,
+        account_index=config.fragment_account_index,
     )
-    await callback.answer()
+
+    try:
+        if order_type == "premium":
+            tx = await fragment.buy_premium(recipient, quantity)
+            desc = f"{quantity} oy Premium"
+        elif order_type == "gift":
+            tx = await fragment.buy_stars(recipient, quantity)
+            desc = f"Gift ({quantity} Stars)"
+        else:
+            tx = await fragment.buy_stars(recipient, quantity)
+            desc = f"{quantity} Stars"
+
+        await db.set_order_status(order_id, "completed", fragment_tx_hash=tx)
+        try:
+            await callback.bot.send_message(
+                user_id,
+                t(lang, "order_completed", amount=desc, recipient=recipient),
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+        await callback.message.edit_text(
+            f"✅ <b>Buyurtma #{order_id} muvaffaqiyatli bajarildi!</b>\n\n"
+            f"👤 Qabul qiluvchi: @{recipient}\n"
+            f"📦 Mahsulot: <b>{desc}</b>\n"
+            f"💰 Summa: <b>{int(price_uzs):,} so'm</b>",
+            parse_mode="HTML",
+        )
+        await callback.answer("✅ Bajarildi!")
+    except Exception as exc:
+        logger.exception("Fragment error on admin confirm: {}", exc)
+        await db.set_order_status(order_id, "failed", error_message=str(exc))
+        await callback.answer(f"Fragment xatosi: {exc}", show_alert=True)

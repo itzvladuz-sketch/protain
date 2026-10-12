@@ -52,6 +52,9 @@ def _admin_ids() -> Tuple[int, ...]:
     return tuple(result)
 
 
+_CONFIG_CACHE: Optional["BotConfig"] = None
+
+
 @dataclass(frozen=True)
 class BotConfig:
     """Runtime settings intentionally kept boring and explicit."""
@@ -61,6 +64,7 @@ class BotConfig:
     admin_user_ids: Tuple[int, ...]
     support_username: str
 
+    fragment_api_key: Optional[str]
     fragment_wallet_mnemonic: str
     fragment_api_url: str
     fragment_api_mode: str
@@ -84,11 +88,27 @@ class BotConfig:
     freekassa_method: int
     freekassa_customer_ip: str
 
+    humo_card_number: str
+    humo_card_holder: str
+    tg_api_id: Optional[int]
+    tg_api_hash: Optional[str]
+    notification_bot_username: str
+    usd_to_uzs_rate: float
+    telethon_session_string: str
+
     version: str
 
     @classmethod
-    def load(cls) -> "BotConfig":
-        required = ["BOT_TOKEN", "FRAGMENT_WALLET_MNEMONIC", "TON_WALLET_ADDRESS"]
+    def load(cls, force_reload: bool = False) -> "BotConfig":
+        global _CONFIG_CACHE
+        if _CONFIG_CACHE is not None and not force_reload:
+            return _CONFIG_CACHE
+
+        api_key = (os.getenv("FRAGMENT_API_KEY") or "").strip() or None
+        required = ["BOT_TOKEN", "TON_WALLET_ADDRESS"]
+        if not api_key:
+            required.append("FRAGMENT_WALLET_MNEMONIC")
+
         missing = [name for name in required if not os.getenv(name)]
         if missing:
             raise ValueError(f"Отсутствуют переменные окружения: {', '.join(missing)}")
@@ -120,6 +140,7 @@ class BotConfig:
             database_path=os.getenv("DATABASE_PATH", "stars_bot.db"),
             admin_user_ids=_admin_ids(),
             support_username=os.getenv("SUPPORT_USERNAME", "support"),
+            fragment_api_key=api_key,
             fragment_wallet_mnemonic=os.getenv("FRAGMENT_WALLET_MNEMONIC", ""),
             fragment_api_url=os.getenv("FRAGMENT_API_URL", "https://api.fragment-api.space"),
             fragment_api_mode=api_mode,
@@ -139,9 +160,17 @@ class BotConfig:
             freekassa_shop_id=_int("FREEKASSA_SHOP_ID", 0),
             freekassa_method=_int("FREEKASSA_METHOD", 44),
             freekassa_customer_ip=os.getenv("FREEKASSA_CUSTOMER_IP", "127.0.0.1"),
+            humo_card_number=os.getenv("HUMO_CARD_NUMBER", ""),
+            humo_card_holder=os.getenv("HUMO_CARD_HOLDER", ""),
+            tg_api_id=_int("TG_API_ID", 0) or None,
+            tg_api_hash=os.getenv("TG_API_HASH") or None,
+            notification_bot_username=os.getenv("NOTIFICATION_BOT_USERNAME", ""),
+            usd_to_uzs_rate=_float("USD_TO_UZS_RATE", 12900.0),
+            telethon_session_string=os.getenv("TELETHON_SESSION_STRING", "").strip(),
             version=os.getenv("BOT_VERSION", "2.0-demo"),
         )
         config._warn_about_optional_settings()
+        _CONFIG_CACHE = config
         return config
 
     def _warn_about_optional_settings(self) -> None:

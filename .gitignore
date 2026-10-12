@@ -1,73 +1,68 @@
-# Environment variables
+# Environment & Secrets (NEVER COMMIT)
 .env
-.env.local
-.env.production
+.env.*
+*.env
+*.key
+*.pem
+*.cert
+*.crt
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual environments
+# Virtual Environments
+.venv/
 venv/
 env/
 ENV/
 env.bak/
 venv.bak/
 
-# Database
+# Telegram & Telethon Sessions
+*.session
+*.session-journal
+auth_state.json
+
+# SQLite Databases & WAL
 *.db
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
+stars_bot.db*
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
 
 # Logs
 logs/
 *.log
 
-# IDE
+# Sensitive cookies & credentials
+fragment_cookies.json
+fragment_cookies_backup.json
+cookies.json
+session.json
+
+# IDE & Editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# Operating System files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Temporary files
 *.tmp
 *.temp
 *.bak
 *.backup
-
-.env
-
-# Fragment cookies (sensitive)
-fragment_cookies.json
-fragment_cookies_backup.json
-cookies.json
-
-# Test files
-test_*.py
-*_test.py
-!tests/
-!tests/test_*.py
