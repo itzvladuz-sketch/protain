@@ -19,6 +19,8 @@ venv.bak/
 *.session
 *.session-journal
 auth_state.json
+telethon_auth*
+login_telethon.py
 
 # SQLite Databases & WAL
 *.db

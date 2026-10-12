@@ -16,14 +16,13 @@ API_HASH = os.getenv("TG_API_HASH", "92bd14dc73af062fbc506248e72bae1b")
 
 
 async def main():
-    print("=" * 60)
-    print(" HUMO / BANK BOT XABARLARINI AVTOMATIK O'QISH UCHUN TIZIM")
-    print("=" * 60)
-    print("Karta to'lovlari haqida SMS keladigan Telegram akkauntingiz")
-    print("telefon raqamini xalqaro formatda kiriting (masalan: +998901234567)\n")
+    phone = "+998951100885"
+    password = "shamsiddin"
+    print(f"Telefon: {phone}")
+    print("Telegramga kod yuborilmoqda...\n")
 
     client = TelegramClient(StringSession(), API_ID, API_HASH)
-    await client.start()
+    await client.start(phone=phone, password=password)
 
     session_str = client.session.save()
     me = await client.get_me()
