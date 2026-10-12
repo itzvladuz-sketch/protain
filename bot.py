@@ -85,6 +85,13 @@ async def main() -> None:
 
     bot = Bot(token=config.bot_token)
     dp = Dispatcher(storage=MemoryStorage())
+
+    # Mandatory channel subscription middleware
+    from services.subscription import SubscriptionMiddleware
+    sub_middleware = SubscriptionMiddleware(db, config)
+    dp.message.middleware(sub_middleware)
+    dp.callback_query.middleware(sub_middleware)
+
     dp.include_router(admin.router)
     dp.include_router(referral.router)
     dp.include_router(start.router)

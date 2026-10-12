@@ -90,9 +90,9 @@ TEXTS: dict = {
         "💳 <b>Humo to'lov:</b>\n\n"
         "💳 Karta:\n<code>{card_number}</code>\n"
         "👤 Egasi: <b>{card_holder}</b>\n\n"
-        "💰 Summa:\n<code>{amount:,} so'm</code>\n\n"
-        "⏱ To'lov muddati: <b>5 daqiqa</b>\n"
-        "⚠️ <i>Aynan shu summani o'tkazing, to'lov avtomatik tekshiriladi!</i>"
+        "💰 To'lov summasi:\n<code>{amount:,}</code> so'm\n\n"
+        "⏱ To'lov muddati: <b>10 daqiqa</b>\n\n"
+        "⚠️ <b>DIQQAT:</b> To'lov avtomatik tarzda 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount:,}</code> so'm o'tkazing!"
     ),
     "payment_not_found": "⏳ To'lov hali topilmadi. Pul o'tkazgan bo'lsangiz, 1-2 daqiqa kuting.",
     "payment_found": "✅ To'lov qabul qilindi!",

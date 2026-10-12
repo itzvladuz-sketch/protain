@@ -334,13 +334,28 @@ class Database:
         return order_id
 
     async def find_pending_humo_order(self, amount_uzs: float) -> Optional[Dict[str, Any]]:
-        """Find pending Humo order matching incoming amount."""
+        """Find pending Humo order matching incoming amount (exact or within small tolerance)."""
         now = datetime.now().isoformat(timespec="seconds")
+        # 1. Exact match
         rows = await self._fetch(
             """
             SELECT * FROM orders
             WHERE payment_type = 'humo' AND status = 'pending'
             AND ABS(price_uzs - ?) < 1
+            AND expires_at >= ?
+            ORDER BY id ASC LIMIT 1
+            """,
+            (amount_uzs, now),
+        )
+        if rows:
+            return rows[0]
+
+        # 2. Tolerant match (within 100 UZS) if user sent flat amount without delta
+        rows = await self._fetch(
+            """
+            SELECT * FROM orders
+            WHERE payment_type = 'humo' AND status = 'pending'
+            AND ABS(price_uzs - ?) <= 100
             AND expires_at >= ?
             ORDER BY id ASC LIMIT 1
             """,

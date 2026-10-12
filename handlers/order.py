@@ -266,6 +266,7 @@ async def topup_manual_amount(message: Message, state: FSMContext) -> None:
 
 
 async def _start_humo_topup_order(target: Message, user, amt: float, state: FSMContext) -> None:
+    import random
     config = BotConfig.load()
     db = Database(config.database_path)
     db_user = await db.get_or_create_user(user.id, user.username)
@@ -275,17 +276,21 @@ async def _start_humo_topup_order(target: Message, user, amt: float, state: FSMC
     card_holder = config.humo_card_holder or "HUMO CARD"
     rate = getattr(config, "usd_to_uzs_rate", 12900.0)
 
-    # 5 minutes expiry
-    expires_at = datetime.now() + timedelta(minutes=5)
+    # Add a tiny unique offset (11-89 so'm) to prevent P2P collision
+    delta = random.randint(11, 89)
+    final_amt = float(int(amt) + delta)
+
+    # 10 minutes expiry
+    expires_at = datetime.now() + timedelta(minutes=10)
     order_id = await db.create_order(
         user_id=user.id,
         username=user.username,
         order_type="topup",
         recipient_username=user.username or "self",
         quantity=1,
-        price_usd=round(amt / rate, 2),
+        price_usd=round(final_amt / rate, 2),
         price_ton=0.0,
-        price_uzs=float(amt),
+        price_uzs=final_amt,
         discount_percent=0.0,
         payment_type="humo",
         payment_address=card_num,
@@ -298,14 +303,14 @@ async def _start_humo_topup_order(target: Message, user, amt: float, state: FSMC
     text = t(lang, "humo_payment_instructions",
              card_number=card_num,
              card_holder=card_holder,
-             amount=int(amt))
+             amount=int(final_amt))
     try:
         await target.edit_text(text, reply_markup=_payment_kb(lang, order_id), parse_mode="HTML")
     except Exception:
         await target.answer(text, reply_markup=_payment_kb(lang, order_id), parse_mode="HTML")
 
     # Notify admin
-    await _notify_admin_new_order(target.bot, config, order_id, user.id, user.username or "", "topup", amt)
+    await _notify_admin_new_order(target.bot, config, order_id, user.id, user.username or "", "topup", final_amt)
 
 
 # ─── Stars flow ───────────────────────────────────────────────────────────────
@@ -848,10 +853,12 @@ async def pay_humo(callback: CallbackQuery, state: FSMContext) -> None:
     discount  = float(data.get("discount_percent", 0))
 
     rate = getattr(config, "usd_to_uzs_rate", 12900.0)
-    price_uzs = round(price_usd * rate)
+    import random
+    delta = random.randint(11, 89)
+    price_uzs = float(round(price_usd * rate) + delta)
 
-    # 5 minutes expiry
-    expires_at = datetime.now() + timedelta(minutes=5)
+    # 10 minutes expiry
+    expires_at = datetime.now() + timedelta(minutes=10)
 
     if service == "stars":
         order_type = "stars"

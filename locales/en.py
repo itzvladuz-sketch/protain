@@ -90,9 +90,9 @@ TEXTS: dict = {
         "💳 <b>Humo Payment:</b>\n\n"
         "💳 Card:\n<code>{card_number}</code>\n"
         "👤 Cardholder: <b>{card_holder}</b>\n\n"
-        "💰 Amount:\n<code>{amount:,} UZS</code>\n\n"
-        "⏱ Payment window: <b>5 minutes</b>\n"
-        "⚠️ <i>Transfer the exact amount, payment is verified automatically!</i>"
+        "💰 Payment Amount:\n<code>{amount:,}</code> UZS\n\n"
+        "⏱ Payment window: <b>10 minutes</b>\n\n"
+        "⚠️ <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount:,}</code> UZS!"
     ),
     "payment_not_found": "⏳ Payment not found yet. If you transferred, please wait 1-2 minutes.",
     "payment_found": "✅ Payment received!",

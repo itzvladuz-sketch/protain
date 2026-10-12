@@ -17,14 +17,25 @@ from services.fragment_api import FragmentAPIService
 
 
 def extract_amount_uzs(text: str) -> Optional[float]:
-    """Parse payment sum from notification message.
+    """Parse incoming payment sum from notification message.
     Matches formats like:
-    +50 000 UZS, +50000 so'm, 50 000.00 UZS, To'lov: 50000, Tushum: 50000, +50000, etc.
+    +50 000 UZS, +50000 so'm, 50 000.00 UZS, Tushum: 50000, Kirim: 50000, +50000, etc.
+    Ignores withdrawals/debit messages.
     """
     cleaned = text.replace("\xa0", " ").strip()
+    lower = cleaned.lower()
+
+    # Filter out debit/withdrawal operations
+    debit_keywords = (
+        "spisanie", "yechildi", "chiqim", "oplata:", "oplata tovar",
+        "karta blok", "komissiya", "avtomatik to'lov:", "yechib olindi",
+    )
+    if any(k in lower for k in debit_keywords):
+        return None
+
     patterns = [
         r"\+\s*([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)",
-        r"(?:tushum|kirim|popolnenie|prihod|to'?lov|postuplenie|perevod|summa|sum|qiymat)[:\s]+\+?\s*([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)",
+        r"(?:tushum|kirim|popolnenie|prihod|postuplenie|perevod\s+ot|perevod|summa|sum|qiymat)[:\s]+\+?\s*([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)",
         r"([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)\s*(?:uzs|so'?m|сум)",
     ]
     for pattern in patterns:
@@ -149,12 +160,13 @@ class HumoPaymentMonitor:
         order_type = str(order.get("order_type") or "stars")
         quantity = int(order.get("quantity") or 1)
         recipient = str(order.get("recipient_username") or "")
+        username = str(order.get("username") or "")
         lang = await self.db.get_user_lang(user_id)
+        price_uzs = float(order.get("price_uzs") or amount_uzs)
 
         logger.info("Humo to'lov tasdiqlandi: Order #{} ({} so'm)", order_id, amount_uzs)
 
         if order_type == "topup":
-            price_uzs = float(order.get("price_uzs") or amount_uzs)
             await self.db.update_user_balance_uzs(user_id, price_uzs)
             await self.db.set_order_status(order_id, "completed")
             user_row = await self.db.get_user(user_id)
@@ -167,6 +179,21 @@ class HumoPaymentMonitor:
                 )
             except Exception as e:
                 logger.warning("Foydalanuvchiga bildirishnoma yuborilmadi: {}", e)
+
+            # Admin notice
+            for adm_id in self.config.admin_user_ids:
+                try:
+                    await self.bot.send_message(
+                        adm_id,
+                        f"💰 <b>Humo to'lov tasdiqlandi!</b>\n\n"
+                        f"🆔 Buyurtma: #{order_id}\n"
+                        f"👤 Foydalanuvchi: <code>{user_id}</code> (@{username})\n"
+                        f"💵 Summa: <b>{int(price_uzs):,} so'm</b>\n"
+                        f"✅ Balansga muvaffaqiyatli o'tkazildi!",
+                        parse_mode="HTML",
+                    )
+                except Exception:
+                    pass
             return True
 
         # Regular service order (stars, premium, gift)
@@ -186,6 +213,9 @@ class HumoPaymentMonitor:
             if order_type == "premium":
                 tx = await fragment.buy_premium(recipient, quantity)
                 desc = f"{quantity} oy Premium"
+            elif order_type == "gift":
+                tx = await fragment.buy_stars(recipient, quantity)
+                desc = f"Gift ({quantity} Stars)"
             else:
                 tx = await fragment.buy_stars(recipient, quantity)
                 desc = f"{quantity} Stars"
@@ -196,19 +226,57 @@ class HumoPaymentMonitor:
                 t(lang, "order_completed", amount=desc, recipient=recipient),
                 parse_mode="HTML",
             )
+
+            # Admin notice
+            for adm_id in self.config.admin_user_ids:
+                try:
+                    await self.bot.send_message(
+                        adm_id,
+                        f"✅ <b>Humo buyurtma muvaffaqiyatli bajarildi!</b>\n\n"
+                        f"🆔 Buyurtma: #{order_id}\n"
+                        f"👤 Qabul qiluvchi: @{recipient}\n"
+                        f"📦 Mahsulot: <b>{desc}</b>\n"
+                        f"💵 Summa: <b>{int(price_uzs):,} so'm</b>",
+                        parse_mode="HTML",
+                    )
+                except Exception:
+                    pass
         except Exception as exc:
             logger.exception("Fragment fulfillment failed for order #{}: {}", order_id, exc)
-            await self.db.set_order_status(order_id, "failed", error_message=str(exc))
-            await self.bot.send_message(
-                user_id,
-                t(lang, "order_failed", support=self.config.support_username or "admin"),
-                parse_mode="HTML",
-            )
+            # Automatic safety refund directly to user's bot balance
+            await self.db.update_user_balance_uzs(user_id, price_uzs)
+            await self.db.set_order_status(order_id, "failed", error_message=f"Fragment xatosi, balansga o'tkazildi: {exc}")
+            user_row = await self.db.get_user(user_id)
+            new_bal_uzs = float(user_row.get("balance_uzs") or 0.0) if user_row else price_uzs
+            try:
+                await self.bot.send_message(
+                    user_id,
+                    f"⚠️ <b>Buyurtmani avtomatik yetkazishda xatolik yuz berdi.</b>\n\n"
+                    f"To'lovingiz (<b>{int(price_uzs):,} so'm</b>) xavfsiz ravishda <b>bot balansingizga</b> o'tkazildi!\n"
+                    f"Joriy balansingiz: <b>{int(new_bal_uzs):,} so'm</b>\n\n"
+                    f"<i>Siz balansingiz orqali qayta xarid qilishingiz mumkin.</i>",
+                    parse_mode="HTML",
+                )
+            except Exception:
+                pass
+
+            # Notify admin
+            for adm_id in self.config.admin_user_ids:
+                try:
+                    await self.bot.send_message(
+                        adm_id,
+                        f"⚠️ <b>Humo buyurtma #{order_id} Fragment xatosi!</b>\n\n"
+                        f"To'lov ({int(price_uzs):,} so'm) xavfsiz ravishda foydalanuvchi <code>{user_id}</code> balansiga o'tkazildi.\n"
+                        f"Xatolik: <code>{exc}</code>",
+                        parse_mode="HTML",
+                    )
+                except Exception:
+                    pass
 
         return True
 
     async def _check_expired_humo_orders(self) -> None:
-        """Cancel Humo orders that passed the 5-minute timeout silently."""
+        """Cancel Humo orders that passed the timeout silently."""
         now = datetime.now().isoformat(timespec="seconds")
         pending = await self.db._fetch(
             "SELECT * FROM orders WHERE payment_type = 'humo' AND status = 'pending' AND expires_at < ?",
@@ -217,7 +285,7 @@ class HumoPaymentMonitor:
         for order in pending:
             order_id = int(order["id"])
             await self.db.set_order_status(order_id, "cancelled")
-            logger.info("Humo buyurtma #{} muddati o'tib bekor qilindi (5 daqiqa)", order_id)
+            logger.info("Humo buyurtma #{} muddati o'tib bekor qilindi", order_id)
 
     async def _sleep(self, seconds: int) -> None:
         if not self._stop_event:

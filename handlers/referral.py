@@ -218,8 +218,7 @@ async def handle_sub_check(callback: CallbackQuery, state: FSMContext) -> None:
         rewarded = await db.reward_referral(stored_ref, user.id, stars=2)
         if rewarded:
             # Clear ref_by so it only rewards once
-            async with Database(config.database_path)._fetch("UPDATE users SET ref_by = NULL WHERE user_id = ?", (user.id,)):
-                pass
+            await db.clear_user_referrer(user.id)
             referrer_user = await db.get_user(stored_ref)
             tot_stars = int(referrer_user.get("referral_stars") or 2) if referrer_user else 2
             ref_lang = await db.get_user_lang(stored_ref)
