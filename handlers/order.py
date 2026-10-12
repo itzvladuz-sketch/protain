@@ -21,6 +21,7 @@ from services.db import Database
 from services.fragment_api import FragmentAPIService
 from services.currency import format_currency, format_balance
 from services.ton import TONService
+from services.icons import ICONS, tg_icon
 
 load_dotenv()
 router = Router()
@@ -57,27 +58,27 @@ class TopupFlow(StatesGroup):
 
 def _back_kb(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")]
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])]
     ])
 
 
 def _cancel_kb(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main")]
+        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main", icon_custom_emoji_id=ICONS["cancel"])]
     ])
 
 
 def _recipient_kb(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_myself"), callback_data="recipient:self", style="success")],
-        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main")],
+        [InlineKeyboardButton(text=t(lang, "btn_myself"), callback_data="recipient:self", icon_custom_emoji_id=ICONS["user"], style="success")],
+        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main", icon_custom_emoji_id=ICONS["cancel"])],
     ])
 
 
 def _payment_kb(lang: str, order_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_check_payment"), callback_data=f"check:{order_id}")],
-        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main")],
+        [InlineKeyboardButton(text=t(lang, "btn_check_payment"), callback_data=f"check:{order_id}", icon_custom_emoji_id=ICONS["check"])],
+        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main", icon_custom_emoji_id=ICONS["cancel"])],
     ])
 
 
@@ -94,9 +95,9 @@ def _order_confirm_kb(
     bal_str = format_balance(user_balance_uzs, lang, config)
     bal_label = f"{t(lang, 'btn_pay_balance')} ({bal_str})"
     buttons = [
-        [InlineKeyboardButton(text=bal_label, callback_data="pay:balance")],
-        [InlineKeyboardButton(text=t(lang, "btn_pay_humo"), callback_data="pay:humo")],
-        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main")],
+        [InlineKeyboardButton(text=bal_label, callback_data="pay:balance", icon_custom_emoji_id=ICONS["wallet"])],
+        [InlineKeyboardButton(text=t(lang, "btn_pay_humo"), callback_data="pay:humo", icon_custom_emoji_id=ICONS["card"])],
+        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main", icon_custom_emoji_id=ICONS["cancel"])],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -115,7 +116,7 @@ def _topup_presets_kb(lang: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="200 000 so'm", callback_data="topup_amt:200000"),
             InlineKeyboardButton(text="500 000 so'm", callback_data="topup_amt:500000"),
         ],
-        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:balance")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:balance", icon_custom_emoji_id=ICONS["back"])],
     ])
 
 
@@ -132,14 +133,14 @@ async def _stars_presets_kb(lang: str, config: BotConfig, db: Database) -> Inlin
         if discount > 0:
             total_usd = total_usd * (1 - discount / 100)
         price_str = format_currency(total_usd, lang, config)
-        buttons.append(InlineKeyboardButton(text=f"⭐ {qty} — {price_str}", callback_data=f"stars_qty:{qty}"))
+        buttons.append(InlineKeyboardButton(text=f"{qty} — {price_str}", callback_data=f"stars_qty:{qty}", icon_custom_emoji_id=ICONS["star"]))
 
     custom_text = {
-        "uz": "✏️ Boshqa miqdor",
-        "ru": "✏️ Другое",
-        "en": "✏️ Custom",
-    }.get(lang, "✏️ Boshqa miqdor")
-    buttons.append(InlineKeyboardButton(text=custom_text, callback_data="stars_qty:custom"))
+        "uz": "Boshqa miqdor",
+        "ru": "Другое",
+        "en": "Custom",
+    }.get(lang, "Boshqa miqdor")
+    buttons.append(InlineKeyboardButton(text=custom_text, callback_data="stars_qty:custom", icon_custom_emoji_id=ICONS["pencil"]))
 
     keyboard = []
     row = []
@@ -151,7 +152,7 @@ async def _stars_presets_kb(lang: str, config: BotConfig, db: Database) -> Inlin
     if row:
         keyboard.append(row)
 
-    keyboard.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")])
+    keyboard.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])])
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
@@ -377,11 +378,12 @@ async def premium_menu(callback: CallbackQuery, state: FSMContext) -> None:
             dur = durations.get(lang, durations["uz"])[svc]
             disc_badge = f" (-{disc:.0f}%)" if disc else ""
             buttons.append([InlineKeyboardButton(
-                text=f"👑 {dur} — {price_str}{disc_badge}",
-                callback_data=f"premium:{svc}"
+                text=f"{dur} — {price_str}{disc_badge}",
+                callback_data=f"premium:{svc}",
+                icon_custom_emoji_id=ICONS["diamond"],
             )])
 
-    buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])])
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     await callback.message.edit_text(
@@ -457,7 +459,7 @@ async def gift_menu(callback: CallbackQuery, state: FSMContext) -> None:
     if row:
         keyboard.append(row)
 
-    keyboard.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")])
+    keyboard.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])])
     kb = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     await callback.message.edit_text(

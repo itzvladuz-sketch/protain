@@ -6,51 +6,51 @@ TEXTS: dict = {
 
     # Main menu
     "welcome": (
-        "👋 Hello, {name}\n"
-        "🆔 User ID: {user_num}\n"
-        "┗👛 Balance: {balance}\n\n"
+        '<tg-emoji emoji-id="5994750571041525522">👋</tg-emoji> Hello, {name}\n'
+        '<tg-emoji emoji-id="5771887475421090729">🆔</tg-emoji> User ID: {user_num}\n'
+        '┗<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Balance: {balance}\n\n'
         "Please select a service:"
     ),
     "main_menu": (
-        "👋 Hello, {name}\n"
-        "🆔 User ID: {user_num}\n"
-        "┗👛 Balance: {balance}\n\n"
+        '<tg-emoji emoji-id="5994750571041525522">👋</tg-emoji> Hello, {name}\n'
+        '<tg-emoji emoji-id="5771887475421090729">🆔</tg-emoji> User ID: {user_num}\n'
+        '┗<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Balance: {balance}\n\n'
         "Please select a service:"
     ),
 
     # Buttons
-    "btn_stars":    "⭐ Stars",
-    "btn_premium":  "💎 Premium",
-    "btn_gift":     "🎁 Gifts Catalog",
-    "btn_balance":  "💰 Balance",
-    "btn_referral": "👥 Referrals (+2⭐)",
-    "btn_orders":   "📋 My Orders",
+    "btn_stars":    "Stars",
+    "btn_premium":  "Premium",
+    "btn_gift":     "Gifts",
+    "btn_balance":  "Balance",
+    "btn_referral": "Referrals (+2⭐)",
+    "btn_orders":   "My Orders",
     "btn_help":     "Help",
-    "btn_language": "🌐 Change Language",
-    "btn_myself":   "👤 For myself",
-    "btn_back":     "◀️ Back",
-    "btn_cancel":   "❌ Cancel",
-    "btn_pay_ton":  "💎 Pay TON",
-    "btn_pay_humo": "💳 Humo (UZS)",
-    "btn_check_payment": "🔍 Check",
+    "btn_language": "Change Language",
+    "btn_myself":   "For myself",
+    "btn_back":     "Back",
+    "btn_cancel":   "Cancel",
+    "btn_pay_ton":  "Pay TON",
+    "btn_pay_humo": "Humo",
+    "btn_check_payment": "Check",
 
     # Stars
     "stars_menu": (
-        "⭐ <b>Telegram Stars</b>\n\n"
-        "👤 Who is this for? Enter username or tap <b>«For myself»</b>:"
+        '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> <b>Telegram Stars</b>\n\n'
+        '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Who is this for? Enter username or tap <b>«For myself»</b>:'
     ),
     "enter_recipient": (
-        "👤 <b>Who is this for?</b>\n"
+        '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> <b>Who is this for?</b>\n'
         "Enter username or tap <b>«For myself»</b>:"
     ),
     "enter_stars_amount": (
-        "⭐ <b>Stars amount:</b>\n"
+        '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> <b>Stars amount:</b>\n'
         "Min: <b>{min}</b> | Max: <b>{max}</b>"
     ),
     "select_stars_amount": (
-        "⭐ <b>Telegram Stars</b>\n\n"
-        "👤 Recipient: <b>@{recipient}</b>\n\n"
-        "Choose Stars amount or tap <b>«✏️ Custom amount»</b>:"
+        '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> <b>Telegram Stars</b>\n\n'
+        '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Recipient: <b>@{recipient}</b>\n\n'
+        "Choose Stars amount or tap <b>«Custom amount»</b>:"
     ),
     "no_username_set": "⚠️ You don't have a @username. Enter recipient's username:",
     "checking_username": "🔍 Checking...",
@@ -101,25 +101,25 @@ TEXTS: dict = {
     "payment_not_found": "⏳ Payment not found yet. If you transferred, please wait 1-2 minutes.",
     "payment_found": "✅ Payment received!",
     "order_completed": (
-        "🎉 <b>Completed!</b>\n\n"
-        "✅ <b>{amount}</b> ➔ sent to @{recipient}."
+        '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Completed!</b>\n\n'
+        '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> <b>{amount}</b> ➔ sent to @{recipient}.'
     ),
     "order_failed": "❌ Failed. Contact @{support}.",
     "order_expired": "⏱ Order #{id} expired (payment not received).",
 
     # Balance
     "balance_info": (
-        "🆔 User ID: {user_num}\n"
-        "┗👛 Balance: {balance}\n\n"
+        '<tg-emoji emoji-id="5771887475421090729">🆔</tg-emoji> User ID: {user_num}\n'
+        '┗<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Balance: {balance}\n\n'
         "To top up your balance, click the button below:"
     ),
-    "btn_topup": "➕ Top Up",
-    "btn_pay_humo": "💳 Pay with Humo",
-    "btn_pay_balance": "💰 Pay from balance",
-    "balance_topup_menu": "💳 <b>Top up balance (Humo):</b>\n\nChoose an amount or enter in UZS (e.g. 50000):",
+    "btn_topup": "Top Up",
+    "btn_pay_humo": "Humo",
+    "btn_pay_balance": "Pay from balance",
+    "balance_topup_menu": '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Top up balance (Humo):</b>\n\nChoose an amount or enter in UZS (e.g. 50000):',
     "balance_topup_min_error": "⚠️ Minimum amount: {min:,} UZS",
     "balance_topup_uzs_completed": (
-        "🎉 <b>Balance topped up!</b>\n\n"
+        '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Balance topped up!</b>\n\n'
         "+<b>{amount:,} UZS</b> credited to your balance.\n"
         "Current balance: <b>{new_balance:,} UZS</b>"
     ),
@@ -128,13 +128,13 @@ TEXTS: dict = {
 
     # Help
     "help_text": (
-        "🆘 <b>Help</b>\n\n"
+        '<tg-emoji emoji-id="5873121512445187130">🆘</tg-emoji> <b>Help</b>\n\n'
         "👨‍💻 Support: @{support}\n"
-        "⚡️ Delivered in 1-3 minutes after payment."
+        '<tg-emoji emoji-id="5843553939672274145">⚡</tg-emoji> Delivered in 1-3 minutes after payment.'
     ),
 
     # Orders history
-    "my_orders": "📋 <b>Your orders:</b>",
+    "my_orders": '<tg-emoji emoji-id="5886330010054168711">📋</tg-emoji> <b>Your orders:</b>',
     "no_orders": "📭 No orders yet.",
     "order_item": "#{id} | {type} ➔ @{recipient} | {amount} | {status_emoji} {status}",
 
@@ -179,16 +179,16 @@ TEXTS: dict = {
 
     # Referrals & Gifts
     "referral_info": (
-        "👥 <b>Referral Program</b>\n\n"
+        '<tg-emoji emoji-id="5915556996215476302">👥</tg-emoji> <b>Referral Program</b>\n\n'
         "🔗 <b>Your invite link:</b>\n"
         "<code>{ref_link}</code>\n\n"
-        "👥 Friends invited: <b>{ref_count}</b>\n"
-        "⭐ Earned Stars: <b>{ref_stars}</b> ⭐\n\n"
+        '<tg-emoji emoji-id="5915556996215476302">👥</tg-emoji> Friends invited: <b>{ref_count}</b>\n'
+        '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> Earned Stars: <b>{ref_stars}</b> ⭐\n\n'
         "ℹ️ <i>For every friend invited, you receive <b>+2 Stars</b>!</i>\n"
-        "🎁 <i>Collect <b>16 Stars</b> or more to claim a free <b>Teddy (15⭐)</b> gift!</i>"
+        '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> <i>Collect <b>16 Stars</b> or more to claim a free <b>Teddy (15⭐)</b> gift!</i>'
     ),
-    "btn_claim_gift": "🎁 Claim Gift (Min: 16 ⭐)",
-    "btn_share_ref": "📤 Share with friends",
+    "btn_claim_gift": "Claim Gift (Min: 16 ⭐)",
+    "btn_share_ref": "Share with friends",
     "referral_share_text": "⭐ The easiest bot to buy Telegram Stars, Premium and Gifts! Join via this link:\n{ref_link}",
     "referral_reward_notice": "🎉 <b>New referral!</b>\nA new user joined via your link. You earned <b>+2 Stars</b>! ⭐\n\nTotal Stars: <b>{total_stars} ⭐</b>",
     "claim_min_stars_error": "⚠️ <b>Not enough Stars!</b>\nYou need at least <b>16 Stars</b> to claim a gift.\n\nYou have: <b>{current} Stars</b> (need <b>{needed} Stars</b> / {friends_needed} friends more).",

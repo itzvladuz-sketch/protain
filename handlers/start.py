@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from locales import t
 from services.config import BotConfig
 from services.db import STATUS_EMOJIS, Database
+from services.icons import ICONS, tg_icon
 
 load_dotenv()
 router = Router()
@@ -38,20 +39,20 @@ def _lang_keyboard() -> InlineKeyboardMarkup:
 def _main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text=t(lang, "btn_stars"),   callback_data="menu:stars"),
-            InlineKeyboardButton(text=t(lang, "btn_premium"), callback_data="menu:premium", style="primary"),
+            InlineKeyboardButton(text=t(lang, "btn_stars"),   callback_data="menu:stars",    icon_custom_emoji_id=ICONS["star"]),
+            InlineKeyboardButton(text=t(lang, "btn_premium"), callback_data="menu:premium",  icon_custom_emoji_id=ICONS["diamond"], style="primary"),
         ],
         [
-            InlineKeyboardButton(text=t(lang, "btn_gift"),    callback_data="menu:gift"),
-            InlineKeyboardButton(text=t(lang, "btn_balance"), callback_data="menu:balance", style="success"),
+            InlineKeyboardButton(text=t(lang, "btn_gift"),    callback_data="menu:gift",     icon_custom_emoji_id=ICONS["gift"]),
+            InlineKeyboardButton(text=t(lang, "btn_balance"), callback_data="menu:balance",  icon_custom_emoji_id=ICONS["wallet"], style="success"),
         ],
         [
-            InlineKeyboardButton(text=t(lang, "btn_referral"), callback_data="menu:referral"),
-            InlineKeyboardButton(text=t(lang, "btn_orders"),  callback_data="menu:orders"),
+            InlineKeyboardButton(text=t(lang, "btn_referral"), callback_data="menu:referral", icon_custom_emoji_id=ICONS["users"]),
+            InlineKeyboardButton(text=t(lang, "btn_orders"),  callback_data="menu:orders",   icon_custom_emoji_id=ICONS["orders"]),
         ],
         [
-            InlineKeyboardButton(text=t(lang, "btn_help"),    callback_data="menu:help", style="danger"),
-            InlineKeyboardButton(text=t(lang, "btn_language"), callback_data="menu:language"),
+            InlineKeyboardButton(text=t(lang, "btn_help"),    callback_data="menu:help",     icon_custom_emoji_id=ICONS["help"], style="danger"),
+            InlineKeyboardButton(text=t(lang, "btn_language"), callback_data="menu:language", icon_custom_emoji_id=ICONS["globe"]),
         ],
     ])
 
@@ -192,8 +193,8 @@ async def menu_balance(callback: CallbackQuery) -> None:
     formatted_bal = format_balance(balance_uzs, lang, config)
 
     balance_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="balance:topup")],
-        [InlineKeyboardButton(text=t(lang, "btn_back"),  callback_data="back:main")],
+        [InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="balance:topup", icon_custom_emoji_id=ICONS["plus"])],
+        [InlineKeyboardButton(text=t(lang, "btn_back"),  callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
     user_num = db_user.get("id", 1)
     await callback.message.edit_text(
@@ -216,7 +217,7 @@ async def menu_help(callback: CallbackQuery) -> None:
     lang = db_user.get("lang", "uz")
 
     back_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")]
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])]
     ])
     await callback.message.edit_text(
         t(lang, "help_text", support=config.support_username or "admin"),
@@ -239,7 +240,7 @@ async def menu_orders(callback: CallbackQuery) -> None:
     orders = await db.get_user_orders(user.id, limit=8)
 
     back_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")]
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])]
     ])
 
     if not orders:

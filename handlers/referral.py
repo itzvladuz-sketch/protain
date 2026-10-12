@@ -18,6 +18,7 @@ from locales import t
 from services.config import BotConfig
 from services.db import Database
 from services.subscription import check_subscription, build_sub_keyboard
+from services.icons import ICONS, tg_icon
 
 router = Router()
 
@@ -30,16 +31,16 @@ def _referral_kb(lang: str, bot_username: str, user_id: int) -> InlineKeyboardMa
     ref_link = f"https://t.me/{bot_username}?start=ref{user_id}"
     share_url = f"https://t.me/share/url?url={quote(ref_link)}&text={quote(t(lang, 'referral_share_text', ref_link=ref_link))}"
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_claim_gift"), callback_data="ref:claim_gift")],
-        [InlineKeyboardButton(text=t(lang, "btn_share_ref"), url=share_url)],
-        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")],
+        [InlineKeyboardButton(text=t(lang, "btn_claim_gift"), callback_data="ref:claim_gift", icon_custom_emoji_id=ICONS["gift"])],
+        [InlineKeyboardButton(text=t(lang, "btn_share_ref"), url=share_url, icon_custom_emoji_id=ICONS["users"])],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
 
 
 def _claim_recipient_kb(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_myself"), callback_data="claim:myself", style="success")],
-        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:referral")],
+        [InlineKeyboardButton(text=t(lang, "btn_myself"), callback_data="claim:myself", icon_custom_emoji_id=ICONS["user"], style="success")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:referral", icon_custom_emoji_id=ICONS["back"])],
     ])
 
 
