@@ -276,9 +276,8 @@ async def _start_humo_topup_order(target: Message, user, amt: float, state: FSMC
     card_holder = config.humo_card_holder or "HUMO CARD"
     rate = getattr(config, "usd_to_uzs_rate", 12900.0)
 
-    # Add a tiny unique offset (11-89 so'm) to prevent P2P collision
-    delta = random.randint(11, 89)
-    final_amt = float(int(amt) + delta)
+    # Exact requested amount without extra fees
+    final_amt = float(amt)
 
     # 5 minutes expiry
     expires_at = datetime.now() + timedelta(minutes=5)
@@ -853,9 +852,7 @@ async def pay_humo(callback: CallbackQuery, state: FSMContext) -> None:
     discount  = float(data.get("discount_percent", 0))
 
     rate = getattr(config, "usd_to_uzs_rate", 12900.0)
-    import random
-    delta = random.randint(11, 89)
-    price_uzs = float(round(price_usd * rate) + delta)
+    price_uzs = float(round(price_usd * rate))
 
     # 5 minutes expiry
     expires_at = datetime.now() + timedelta(minutes=5)

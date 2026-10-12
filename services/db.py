@@ -22,21 +22,21 @@ from loguru import logger
 # ─────────────────────────────────────────────────────────────────────────────
 DEFAULT_PRICES = [
     # (service_key, base_price_usd, commission_percent, discount_percent, min_qty, max_qty)
-    ("stars",        0.015,  5.0, 0.0,    50,    50000),
-    ("premium_1m",   3.99,   5.0, 0.0,    1,     1),
-    ("premium_3m",   9.99,   5.0, 0.0,    1,     1),
-    ("premium_6m",   17.99,  5.0, 0.0,    1,     1),
-    ("premium_12m",  34.99,  5.0, 0.0,    1,     1),
-    ("gift_15",      0.225,  5.0, 0.0,    15,    15),
-    ("gift_25",      0.375,  5.0, 0.0,    25,    25),
-    ("gift_rose",    0.375,  5.0, 0.0,    25,    25),
-    ("gift_cake",    0.75,   5.0, 0.0,    50,    50),
-    ("gift_rocket",  0.75,   5.0, 0.0,    50,    50),
-    ("gift_diamond", 0.75,   5.0, 0.0,    50,    50),
-    ("gift_champagne", 1.125, 5.0, 0.0,   75,    75),
-    ("gift_box",     1.50,   5.0, 0.0,    100,   100),
-    ("gift_crown",   1.50,   5.0, 0.0,    100,   100),
-    ("gift_trophy",  1.50,   5.0, 0.0,    100,   100),
+    ("stars",        0.015,  1.0, 0.0,    50,    50000),
+    ("premium_1m",   3.99,   1.0, 0.0,    1,     1),
+    ("premium_3m",   9.99,   1.0, 0.0,    1,     1),
+    ("premium_6m",   17.99,  1.0, 0.0,    1,     1),
+    ("premium_12m",  34.99,  1.0, 0.0,    1,     1),
+    ("gift_15",      0.225,  1.0, 0.0,    15,    15),
+    ("gift_25",      0.375,  1.0, 0.0,    25,    25),
+    ("gift_rose",    0.375,  1.0, 0.0,    25,    25),
+    ("gift_cake",    0.75,   1.0, 0.0,    50,    50),
+    ("gift_rocket",  0.75,   1.0, 0.0,    50,    50),
+    ("gift_diamond", 0.75,   1.0, 0.0,    50,    50),
+    ("gift_champagne", 1.125, 1.0, 0.0,   75,    75),
+    ("gift_box",     1.50,   1.0, 0.0,    100,   100),
+    ("gift_crown",   1.50,   1.0, 0.0,    100,   100),
+    ("gift_trophy",  1.50,   1.0, 0.0,    100,   100),
 ]
 
 STATUS_EMOJIS = {
@@ -201,7 +201,7 @@ class Database:
         await db.commit()
 
     async def init_default_prices(self) -> None:
-        """Insert default prices if they don't exist yet."""
+        """Insert default prices if they don't exist yet and lower legacy 5.0% commission."""
         async with aiosqlite.connect(self.db_path) as db:
             for service, base_usd, comm, disc, min_q, max_q in DEFAULT_PRICES:
                 await db.execute(
@@ -212,7 +212,10 @@ class Database:
                     """,
                     (service, base_usd, comm, disc, min_q, max_q),
                 )
+            # Automatically lower existing default 5.0% commission to 1.0%
+            await db.execute("UPDATE prices SET commission_percent = 1.0 WHERE commission_percent = 5.0")
             await db.commit()
+            Database._prices_cache.clear()
 
     # ─── Users ───────────────────────────────────────────────────────────────
 
