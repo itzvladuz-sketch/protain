@@ -961,12 +961,6 @@ async def check_payment(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.message(OrderFlow.waiting_payment)
 async def process_user_payment_sms(message: Message, state: FSMContext) -> None:
-    from services.humo_monitor import extract_amount_uzs
-    text = message.text or message.caption or ""
-    amt = extract_amount_uzs(text)
-    if not amt:
-        return
-
     config = BotConfig.load()
     db = Database(config.database_path)
     user = message.from_user
@@ -975,74 +969,62 @@ async def process_user_payment_sms(message: Message, state: FSMContext) -> None:
 
     data = await state.get_data()
     order_id = data.get("order_id")
-    order = None
-    if order_id:
-        order = await db.get_order(order_id)
-    if not order:
-        order = await db.find_pending_humo_order(amt)
-
-    if not order or order["user_id"] != user.id or order["status"] != "pending":
+    order = await db.get_order(order_id) if order_id else None
+    if not order or order["status"] != "pending":
+        await state.clear()
         return
 
     expected_uzs = float(order.get("price_uzs") or 0.0)
-    if abs(expected_uzs - amt) > 1:
-        return
 
-    lang = await db.get_user_lang(user.id)
-    order_type = str(order.get("order_type") or "stars")
-    quantity = int(order.get("quantity") or 1)
-    recipient = str(order.get("recipient_username") or "")
+    # Forward receipt to admins for manual review if user sends check screenshot/text
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    admin_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"✅ #{order_id} Tasdiqlash", callback_data=f"admin_confirm:{order_id}")],
+    ])
 
-    if order_type == "topup":
-        await db.update_user_balance_uzs(user.id, expected_uzs)
-        await db.set_order_status(order["id"], "completed")
-        user_row = await db.get_user(user.id)
-        new_bal = float(user_row.get("balance_uzs") or 0.0) if user_row else expected_uzs
-        await state.clear()
-        await message.answer(
-            t(lang, "balance_topup_uzs_completed", amount=int(expected_uzs), new_balance=int(new_bal)),
-            reply_markup=_back_kb(lang),
-            parse_mode="HTML",
-        )
-        return
-
-    # Service order
-    await db.set_order_status(order["id"], "paid")
-    fragment = FragmentAPIService(
-        api_key=config.fragment_api_key,
-        wallet_mnemonic=config.fragment_wallet_mnemonic,
-        api_url=config.fragment_api_url,
-        api_mode=config.fragment_api_mode,
-        payment_method=config.fragment_payment_method,
-        cookies_base64=config.fragment_cookies_base64,
-        wallet_address=config.fragment_wallet_address,
-        account_index=config.fragment_account_index,
+    admin_caption = (
+        f"📸 <b>Foydalanuvchi to'lov cheki yubordi:</b>\n\n"
+        f"🆔 Buyurtma: #{order_id}\n"
+        f"👤 Foydalanuvchi: <code>{user.id}</code> (@{user.username or 'yoq'})\n"
+        f"💰 Summa: <b>{int(expected_uzs):,} so'm</b>\n"
+        f"📦 Turi: {order.get('order_type')}"
     )
-    try:
-        if order_type == "premium":
-            tx = await fragment.buy_premium(recipient, quantity)
-            desc = f"{quantity} oy Premium"
-        elif order_type == "gift":
-            tx = await fragment.buy_stars(recipient, quantity)
-            desc = f"Gift ({quantity} Stars)"
-        else:
-            tx = await fragment.buy_stars(recipient, quantity)
-            desc = f"{quantity} Stars"
 
-        await db.set_order_status(order["id"], "completed", fragment_tx_hash=tx)
-        await state.clear()
-        await message.answer(
-            t(lang, "order_completed", amount=desc, recipient=recipient),
-            reply_markup=_back_kb(lang),
-            parse_mode="HTML",
-        )
-    except Exception as exc:
-        logger.exception("Fragment fulfillment error: {}", exc)
-        await message.answer(
-            t(lang, "order_failed", support=config.support_username or "admin"),
-            reply_markup=_back_kb(lang),
-            parse_mode="HTML",
-        )
+    for admin_id in config.admin_user_ids:
+        try:
+            if message.photo:
+                await message.bot.send_photo(
+                    admin_id,
+                    message.photo[-1].file_id,
+                    caption=admin_caption,
+                    reply_markup=admin_kb,
+                    parse_mode="HTML",
+                )
+            elif message.document:
+                await message.bot.send_document(
+                    admin_id,
+                    message.document.file_id,
+                    caption=admin_caption,
+                    reply_markup=admin_kb,
+                    parse_mode="HTML",
+                )
+            else:
+                user_text = message.text or ""
+                await message.bot.send_message(
+                    admin_id,
+                    f"{admin_caption}\n\n💬 Xabar: <i>{user_text}</i>",
+                    reply_markup=admin_kb,
+                    parse_mode="HTML",
+                )
+        except Exception:
+            pass
+
+    await message.answer(
+        "📩 <b>To'lov chekingiz adminga yuborildi.</b>\n\n"
+        "To'lov kartaga tushishi bilan tizim avtomatik tarzda (yoki admin tomonidan) tasdiqlaydi. "
+        "Iltimos, kuting.",
+        parse_mode="HTML",
+    )
 
 
 # ─── Admin 1-Click Order Confirmation ─────────────────────────────────────────

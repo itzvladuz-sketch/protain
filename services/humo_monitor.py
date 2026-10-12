@@ -17,26 +17,42 @@ from services.fragment_api import FragmentAPIService
 
 
 def extract_amount_uzs(text: str) -> Optional[float]:
-    """Parse incoming payment sum from notification message.
-    Matches formats like:
-    +50 000 UZS, +50000 so'm, 50 000.00 UZS, Tushum: 50000, Kirim: 50000, +50000, etc.
-    Ignores withdrawals/debit messages.
+    """Parse incoming bank payment sum from notification message.
+    Strictly matches deposit messages (e.g. +50 000 UZS, Karta to'ldirildi: +50 000 UZS).
+    Rejects invoices, bot commands, withdrawals, and debit messages.
     """
     cleaned = text.replace("\xa0", " ").strip()
     lower = cleaned.lower()
 
-    # Filter out debit/withdrawal operations
-    debit_keywords = (
-        "spisanie", "yechildi", "chiqim", "oplata:", "oplata tovar",
-        "karta blok", "komissiya", "avtomatik to'lov:", "yechib olindi",
+    # Reject bot invoices, commands, or internal shop messages
+    invoice_keywords = (
+        "to'lov summasi", "to'lov muddati", "buyurtma #", "so'rov #",
+        "admin panel", "karta raqami:", "qabul qiluvchi:", "balansdan to'lash",
+        "humo to'lov:", "оплата через humo", "humo payment:", "spisanie",
+        "yechildi", "chiqim", "oplata:", "oplata tovar", "karta blok",
+        "komissiya", "avtomatik to'lov:", "yechib olindi",
     )
-    if any(k in lower for k in debit_keywords):
+    if any(k in lower for k in invoice_keywords):
+        return None
+
+    # Require evidence of deposit (tushum, kirim, popolnenie, to'ldirildi, etc., or +)
+    deposit_markers = (
+        "tushum", "kirim", "popolnenie", "prihod", "postuplenie",
+        "to'ldirildi", "toldirildi", "hisobingiz to'ldirildi",
+        "karta to'ldirildi", "kartangiz to'ldirildi", "kelib tushdi",
+        "перевод на карту", "зачисление", "пополнение карты",
+    )
+    has_marker = any(m in lower for m in deposit_markers)
+    has_plus = "+" in text
+
+    if not (has_marker or has_plus):
         return None
 
     patterns = [
-        r"\+\s*([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)",
-        r"(?:tushum|kirim|popolnenie|prihod|postuplenie|perevod\s+ot|perevod|summa|sum|qiymat)[:\s]+\+?\s*([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)",
-        r"([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)\s*(?:uzs|so'?m|сум)",
+        # Explicit plus format: +50 000 UZS or +50000 so'm or +50,000
+        r"\+\s*([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)\s*(?:uzs|so'?m|сум)?",
+        # Deposit keyword format: Tushum: 50 000 or Kirim: 50000 UZS
+        r"(?:tushum|kirim|popolnenie|prihod|postuplenie|to'?ldirildi|za[cs]hislenie)[:\s]+\+?\s*([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)",
     ]
     for pattern in patterns:
         match = re.search(pattern, cleaned, re.IGNORECASE)
@@ -96,6 +112,11 @@ class HumoPaymentMonitor:
         try:
             from telethon import TelegramClient, events
             from telethon.sessions import StringSession
+
+            bot_me = await self.bot.get_me()
+            my_bot_id = bot_me.id
+            my_bot_username = (bot_me.username or "").lower()
+
             session = StringSession(self.config.telethon_session_string) if getattr(self.config, "telethon_session_string", "") else "humo_listener_session"
             self.client = TelegramClient(
                 session,
@@ -109,26 +130,34 @@ class HumoPaymentMonitor:
                 await self.client.disconnect()
                 return
 
-            logger.info("Telethon Humo to'lov tinglovchisi ishga tushdi")
+            logger.info("Telethon Humo to'lov tinglovchisi ishga tushdi (Bot @{} e'tiborsiz qoldiriladi)", my_bot_username)
 
             @self.client.on(events.NewMessage)
             async def handler(event):
                 try:
+                    # Ignore outgoing messages sent by the listener account
+                    if getattr(event, "out", False):
+                        return
+
                     sender = await event.get_sender()
+                    if not sender:
+                        return
+
+                    sender_id = getattr(sender, "id", 0)
                     sender_username = (getattr(sender, "username", "") or "").lower()
                     sender_title = (getattr(sender, "title", "") or getattr(sender, "first_name", "") or "").lower()
-                    target_bot = getattr(self.config, "notification_bot_username", "").lstrip("@").lower()
-                    is_bot = bool(getattr(sender, "bot", False))
 
-                    # Filter by target bot, bank keywords, or any bot message
+                    # CRITICAL SECURITY: Never listen to our own shop bot!
+                    if sender_id == my_bot_id or (my_bot_username and sender_username == my_bot_username):
+                        return
+
+                    target_bot = getattr(self.config, "notification_bot_username", "").lstrip("@").lower()
+
+                    # Filter to genuine bank notification sources
                     is_match = False
-                    if target_bot and (target_bot in sender_username or target_bot in sender_title):
+                    if target_bot and (target_bot == sender_username or target_bot in sender_username or target_bot in sender_title):
                         is_match = True
-                    elif any(kw in sender_username or kw in sender_title for kw in ("humo", "bank", "karta", "card", "click", "payme", "uzum", "pay")):
-                        is_match = True
-                    elif is_bot:
-                        is_match = True
-                    elif not target_bot:
+                    elif any(bank_tag in sender_username for bank_tag in ("humocardbot", "humocardsmsbot", "payme_uz", "clickuz")):
                         is_match = True
 
                     if not is_match:
