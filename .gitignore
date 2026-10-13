@@ -23,12 +23,8 @@ telethon_auth*
 login_telethon.py
 
 # SQLite Databases & WAL
-*.db
 *.db-wal
 *.db-shm
-*.sqlite
-*.sqlite3
-stars_bot.db*
 
 # Python cache & artifacts
 __pycache__/
