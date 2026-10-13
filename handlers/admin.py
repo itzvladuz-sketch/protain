@@ -117,6 +117,51 @@ async def cmd_admin(message: Message, state: FSMContext) -> None:
     await show_admin_panel(message, config)
 
 
+@router.message(Command("addmoney"))
+async def cmd_addmoney(message: Message) -> None:
+    """Admin buyrug'i: /addmoney 50000 yoki /addmoney 8534196478 50000"""
+    config = BotConfig.load()
+    if not message.from_user or not await _is_admin(message.from_user.id, config):
+        return
+
+    parts = (message.text or "").split()
+    # Format 1: /addmoney 50000 (o'ziga)
+    # Format 2: /addmoney 8534196478 50000 (boshqa userga)
+    db = Database(config.database_path)
+    target_user_id = message.from_user.id
+    amount = 0.0
+
+    if len(parts) == 2:
+        try:
+            amount = float(parts[1])
+        except ValueError:
+            await message.answer("❌ Noto'g'ri summa: <code>/addmoney 50000</code>")
+            return
+    elif len(parts) >= 3:
+        try:
+            target_user_id = int(parts[1])
+            amount = float(parts[2])
+        except ValueError:
+            await message.answer("❌ Noto'g'ri format: <code>/addmoney [user_id] [summa]</code>")
+            return
+    else:
+        await message.answer("ℹ️ <b>Foydalanish:</b>\n<code>/addmoney 150000</code> — o'zingizga pul qo'shish\n<code>/addmoney 8534196478 150000</code> — boshqa foydalanuvchiga qo'shish", parse_mode="HTML")
+        return
+
+    await db.get_or_create_user(target_user_id, None)
+    await db.update_user_balance_uzs(target_user_id, amount)
+    user_row = await db.get_user(target_user_id)
+    new_bal = float(user_row.get("balance_uzs") or 0.0) if user_row else amount
+
+    await message.answer(
+        f"✅ <b>Balans muvaffaqiyatli qo'shildi!</b>\n\n"
+        f"👤 User ID: <code>{target_user_id}</code>\n"
+        f"➕ Qo'shildi: <b>{int(amount):,} so'm</b>\n"
+        f"💰 Yangi balans: <b>{int(new_bal):,} so'm</b>",
+        parse_mode="HTML",
+    )
+
+
 # ─── Main panel callback ──────────────────────────────────────────────────────
 
 @router.callback_query(F.data == "adm:main")
