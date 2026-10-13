@@ -61,18 +61,21 @@ TEXTS: dict = {
         "📋 <b>Order:</b>\n\n"
         "⭐ <b>{amount} Stars</b> ➔ @{recipient}\n"
         "💰 Price: <b>{price}</b>\n"
+        "👛 Your balance: <b>{balance}</b>\n"
         "{discount_line}"
     ),
     "order_summary_premium": (
         "📋 <b>Order:</b>\n\n"
         "👑 <b>Premium ({duration})</b> ➔ @{recipient}\n"
         "💰 Price: <b>{price}</b>\n"
+        "👛 Your balance: <b>{balance}</b>\n"
         "{discount_line}"
     ),
     "order_summary_gift": (
         "📋 <b>Order:</b>\n\n"
         "🎁 <b>{gift_name} ({amount} Stars)</b> ➔ @{recipient}\n"
         "💰 Price: <b>{price}</b>\n"
+        "👛 Your balance: <b>{balance}</b>\n"
         "{discount_line}"
     ),
     "discount_line": "🎉 Discount: <b>-{discount}%</b>\n",

@@ -61,18 +61,21 @@ TEXTS: dict = {
         "📋 <b>Buyurtma:</b>\n\n"
         "⭐ <b>{amount} Stars</b> ➔ @{recipient}\n"
         "💰 Narxi: <b>{price}</b>\n"
+        "👛 Balansingiz: <b>{balance}</b>\n"
         "{discount_line}"
     ),
     "order_summary_premium": (
         "📋 <b>Buyurtma:</b>\n\n"
         "👑 <b>Premium ({duration})</b> ➔ @{recipient}\n"
         "💰 Narxi: <b>{price}</b>\n"
+        "👛 Balansingiz: <b>{balance}</b>\n"
         "{discount_line}"
     ),
     "order_summary_gift": (
         "📋 <b>Buyurtma:</b>\n\n"
         "🎁 <b>{gift_name} ({amount} Stars)</b> ➔ @{recipient}\n"
         "💰 Narxi: <b>{price}</b>\n"
+        "👛 Balansingiz: <b>{balance}</b>\n"
         "{discount_line}"
     ),
     "discount_line": "🎉 Chegirma: <b>-{discount}%</b>\n",
@@ -95,7 +98,7 @@ TEXTS: dict = {
         "💳 Karta:\n<code>{card_number}</code>\n"
         "👤 Egasi: <b>{card_holder}</b>\n\n"
         "💰 To'lov summasi:\n<code>{amount:,}</code> so'm\n\n"
-        "⏱ To'lov muddati: <b>5 daqiqa</b>\n\n"
+        "⏱ To'lov muddati: <b>30 daqiqa</b>\n\n"
         "⚠️ <b>DIQQAT:</b> To'lov avtomatik tarzda 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount:,}</code> so'm o'tkazing!"
     ),
     "payment_not_found": "⏳ To'lov hali topilmadi. Pul o'tkazgan bo'lsangiz, 1-2 daqiqa kuting.",

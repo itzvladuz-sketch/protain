@@ -705,6 +705,7 @@ async def _show_order_summary(
 
     price_formatted = format_currency(prices["price_usd"], lang, config)
 
+    bal_str = format_balance(user_balance_uzs, lang, config)
     disc = prices["discount_percent"]
     disc_line = t(lang, "discount_line", discount=f"{disc:.0f}") if disc > 0 else ""
 
@@ -712,6 +713,7 @@ async def _show_order_summary(
         summary = t(lang, "order_summary_stars",
                     amount=qty, recipient=recipient,
                     price=price_formatted,
+                    balance=bal_str,
                     discount_line=disc_line)
     elif service.startswith("premium"):
         dur_map = {
@@ -723,6 +725,7 @@ async def _show_order_summary(
         summary = t(lang, "order_summary_premium",
                     duration=duration, recipient=recipient,
                     price=price_formatted,
+                    balance=bal_str,
                     discount_line=disc_line)
     else:  # gift
         amt = qty
@@ -738,6 +741,7 @@ async def _show_order_summary(
                     gift_name=gift_name,
                     amount=amt, recipient=recipient,
                     price=price_formatted,
+                    balance=bal_str,
                     discount_line=disc_line)
 
     await state.set_state(OrderFlow.confirm_order)
@@ -1011,9 +1015,28 @@ async def check_payment(callback: CallbackQuery, state: FSMContext) -> None:
         except Exception:
             pass
 
+    if user.id in config.admin_user_ids:
+        test_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⚡️ Hoziroq tasdiqlash va Stars yuborish", callback_data=f"admin_confirm:{order_id}")],
+            [InlineKeyboardButton(text="🔄 Qayta tekshirish", callback_data=f"check:{order_id}")],
+            [InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"admin_cancel:{order_id}")],
+        ])
+        await callback.message.edit_text(
+            f"👑 <b>Admin sinov rejimi:</b>\n\n"
+            f"🆔 Buyurtma: #{order_id}\n"
+            f"📦 Mahsulot: <b>{order_type_desc}</b>{rec_desc}\n"
+            f"💵 Summa: <b>{check_amt:,} so'm</b>\n\n"
+            f"<i>Bank SMS xabarini kutmasdan, buyurtmani darhol bajarish uchun tugmani bosing:</i>",
+            reply_markup=test_kb,
+            parse_mode="HTML",
+        )
+        await callback.answer("👑 Admin rejimi: darhol tasdiqlashingiz mumkin!")
+        return
+
     alert_text = (
-        "⏳ To'lov hali tasdiqlanmadi.\n\n"
-        "Agar pulni o'tkazgan bo'lsangiz, chekni (skrinshotni) shu chatga rasm sifatida yuboring — adminga darhol yetib boradi va tasdiqlanadi!"
+        "⏳ To'lov tekshirilmoqda.\n\n"
+        "To'lov kartaga tushishi bilan tizim avtomatik tasdiqlaydi. "
+        "Yoki to'lov chekini (skrinshotini) shu chatga rasm qilib yuboring!"
     )
     await callback.answer(alert_text, show_alert=True)
 

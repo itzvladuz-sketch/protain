@@ -108,7 +108,7 @@ async def main() -> None:
         bot_info = await bot.get_me()
         logger.info("Бот запущен через polling: @{}", bot_info.username)
         try:
-            await bot.delete_webhook(drop_pending_updates=True)
+            await bot.delete_webhook(drop_pending_updates=False)
         except Exception as e:
             logger.warning("delete_webhook xatosi (e'tiborsiz qoldiriladi): {}", e)
 

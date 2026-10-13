@@ -23,6 +23,7 @@ def extract_amount_uzs(text: str) -> Optional[float]:
     """
     cleaned = text.replace("\xa0", " ").strip()
     lower = cleaned.lower()
+    normalized = cleaned.replace("\u2795", "+").replace("➕", "+")
 
     # Reject bot invoices, commands, or internal shop messages
     invoice_keywords = (
@@ -35,35 +36,37 @@ def extract_amount_uzs(text: str) -> Optional[float]:
     if any(k in lower for k in invoice_keywords):
         return None
 
-    # Require evidence of deposit (tushum, kirim, popolnenie, to'ldirildi, etc., or +)
     deposit_markers = (
         "tushum", "kirim", "popolnenie", "prihod", "postuplenie",
-        "to'ldirildi", "toldirildi", "hisobingiz to'ldirildi",
-        "karta to'ldirildi", "kartangiz to'ldirildi", "kelib tushdi",
-        "перевод на карту", "зачисление", "пополнение карты",
+        "to'ldirish", "toldirish", "to'ldirildi", "toldirildi",
+        "hisobingiz to'ldirildi", "karta to'ldirildi", "kartangiz to'ldirildi",
+        "kelib tushdi", "перевод на карту", "зачисление", "пополнение",
     )
-    has_marker = any(m in lower for m in deposit_markers)
-    has_plus = "+" in text
-
-    if not (has_marker or has_plus):
+    if not (any(m in lower for m in deposit_markers) or "+" in normalized):
         return None
 
-    patterns = [
-        # Explicit plus format: +50 000 UZS or +50000 so'm or +50,000
-        r"\+\s*([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)\s*(?:uzs|so'?m|сум)?",
-        # Deposit keyword format: Tushum: 50 000 or Kirim: 50000 UZS
-        r"(?:tushum|kirim|popolnenie|prihod|postuplenie|to'?ldirildi|za[cs]hislenie)[:\s]+\+?\s*([0-9]{1,3}(?:[ ,][0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, cleaned, re.IGNORECASE)
-        if match:
-            num_str = match.group(1).replace(" ", "").replace(",", "")
+    for line in normalized.splitlines():
+        line = line.strip()
+        m = re.search(r"\+\s*([0-9]{1,3}(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)\s*(?:uzs|so'?m|сум)?", line, re.IGNORECASE)
+        if not m:
+            m = re.search(r"(?:to'?ldirish|tushum|kirim|popolnenie)[:\s]+\+?\s*([0-9]{1,3}(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)", line, re.IGNORECASE)
+        if m:
+            raw = m.group(1).replace(" ", "")
+            if "." in raw and "," in raw:
+                if raw.rfind(",") > raw.rfind("."):
+                    raw = raw.replace(".", "").replace(",", ".")
+                else:
+                    raw = raw.replace(",", "")
+            elif "." in raw and len(raw.split(".")[-1]) == 3:
+                raw = raw.replace(".", "")
+            else:
+                raw = raw.replace(",", "")
             try:
-                amt = float(num_str)
+                amt = float(raw)
                 if amt >= 1000:
                     return amt
             except ValueError:
-                continue
+                pass
     return None
 
 
@@ -122,6 +125,11 @@ class HumoPaymentMonitor:
                 session,
                 int(self.config.tg_api_id),
                 str(self.config.tg_api_hash),
+                device_model="Desktop",
+                system_version="Windows 11",
+                app_version="5.0.0",
+                lang_code="uz",
+                system_lang_code="uz-UZ",
             )
 
             await self.client.connect()
@@ -157,13 +165,14 @@ class HumoPaymentMonitor:
                     is_match = False
                     if target_bot and (target_bot == sender_username or target_bot in sender_username or target_bot in sender_title):
                         is_match = True
-                    elif any(bank_tag in sender_username for bank_tag in ("humocardbot", "humocardsmsbot", "payme_uz", "clickuz")):
+                    elif any(bank_tag in sender_username or bank_tag in sender_title for bank_tag in ("humo", "humocard", "payme", "click", "bank", "sms", "pay")):
                         is_match = True
 
                     if not is_match:
                         return
 
                     msg_text = event.raw_text or ""
+                    logger.info("Bank/Humo xabari keldi (@{} / {}): {}", sender_username, sender_title, msg_text[:80].replace('\n', ' '))
                     amt = extract_amount_uzs(msg_text)
                     if amt:
                         logger.info("Humo to'lov xabari aniqlandi: {} so'm (yuboruvchi: @{} / {})", amt, sender_username, sender_title)

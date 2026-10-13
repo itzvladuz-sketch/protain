@@ -61,18 +61,21 @@ TEXTS: dict = {
         "📋 <b>Заказ:</b>\n\n"
         "⭐ <b>{amount} Stars</b> ➔ @{recipient}\n"
         "💰 Стоимость: <b>{price}</b>\n"
+        "👛 Ваш баланс: <b>{balance}</b>\n"
         "{discount_line}"
     ),
     "order_summary_premium": (
         "📋 <b>Заказ:</b>\n\n"
         "👑 <b>Premium ({duration})</b> ➔ @{recipient}\n"
         "💰 Стоимость: <b>{price}</b>\n"
+        "👛 Ваш баланс: <b>{balance}</b>\n"
         "{discount_line}"
     ),
     "order_summary_gift": (
         "📋 <b>Заказ:</b>\n\n"
         "🎁 <b>{gift_name} ({amount} Stars)</b> ➔ @{recipient}\n"
         "💰 Стоимость: <b>{price}</b>\n"
+        "👛 Ваш баланс: <b>{balance}</b>\n"
         "{discount_line}"
     ),
     "discount_line": "🎉 Скидка: <b>-{discount}%</b>\n",

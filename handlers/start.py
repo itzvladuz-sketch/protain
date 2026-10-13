@@ -118,8 +118,10 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
             await message.answer(t(lang, "error_banned", support=config.support_username))
             return
         from services.currency import format_balance
-        user_num = existing.get("id", 1)
-        bal_str = format_balance(float(existing.get("balance_uzs") or 0.0), lang, config)
+        # Fresh balans uchun get_user
+        fresh_user = await db.get_user(user.id) or existing
+        user_num = fresh_user.get("id", 1)
+        bal_str = format_balance(float(fresh_user.get("balance_uzs") or 0.0), lang, config)
         await message.answer(
             t(lang, "welcome", name=name, user_num=user_num, balance=bal_str),
             reply_markup=_main_menu_keyboard(lang),
@@ -185,7 +187,10 @@ async def menu_balance(callback: CallbackQuery) -> None:
     if not user:
         return
 
-    db_user = await db.get_or_create_user(user.id, user.username)
+    # Fresh balans uchun get_user ishlatamiz
+    db_user = await db.get_user(user.id)
+    if not db_user:
+        db_user = await db.get_or_create_user(user.id, user.username)
     lang = db_user.get("lang", "uz")
     balance_uzs = float(db_user.get("balance_uzs") or 0.0)
 
@@ -284,14 +289,25 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext) -> None:
     db = Database(config.database_path)
     if order_id:
         try:
-            await db.set_order_status(int(order_id), "cancelled")
+            order = await db.get_order(int(order_id))
+            # topup buyurtmani bekor qilmaymiz — admin hali tasdiqlashi mumkin
+            if order and order.get("order_type") != "topup":
+                await db.set_order_status(int(order_id), "cancelled")
         except Exception:
             pass
     user = callback.from_user
     if not user:
         return
 
-    db_user = await db.get_or_create_user(user.id, user.username)
+    # Har doim DB dan yangi balans o'qiymiz
+    db_user = await db.get_user(user.id)
+    if not db_user:
+        db_user = await db.get_or_create_user(user.id, user.username)
+    else:
+        # username yangilash
+        if user.username:
+            await db.get_or_create_user(user.id, user.username)
+
     lang = db_user.get("lang", "uz")
     from services.currency import format_balance
     user_num = db_user.get("id", 1)
