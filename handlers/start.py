@@ -43,15 +43,14 @@ def _main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text=t(lang, "btn_premium"), callback_data="menu:premium",  icon_custom_emoji_id=ICONS["diamond"], style="primary"),
         ],
         [
-            InlineKeyboardButton(text=t(lang, "btn_gift"),    callback_data="menu:gift",     icon_custom_emoji_id=ICONS["gift"]),
             InlineKeyboardButton(text=t(lang, "btn_balance"), callback_data="menu:balance",  icon_custom_emoji_id=ICONS["wallet"], style="success"),
-        ],
-        [
             InlineKeyboardButton(text=t(lang, "btn_referral"), callback_data="menu:referral", icon_custom_emoji_id=ICONS["users"]),
-            InlineKeyboardButton(text=t(lang, "btn_orders"),  callback_data="menu:orders",   icon_custom_emoji_id=ICONS["orders"]),
         ],
         [
+            InlineKeyboardButton(text=t(lang, "btn_orders"),  callback_data="menu:orders",   icon_custom_emoji_id=ICONS["orders"]),
             InlineKeyboardButton(text=t(lang, "btn_help"),    callback_data="menu:help",     icon_custom_emoji_id=ICONS["help"], style="danger"),
+        ],
+        [
             InlineKeyboardButton(text=t(lang, "btn_language"), callback_data="menu:language", icon_custom_emoji_id=ICONS["globe"]),
         ],
     ])
