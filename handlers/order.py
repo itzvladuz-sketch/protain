@@ -36,7 +36,6 @@ GIFTS_CATALOG = [
     ("gift_diamond",   50,  "💎", {"uz": "Olmos",     "ru": "Алмаз",    "en": "Diamond"}),
     ("gift_champagne", 75,  "🍾", {"uz": "Shampan",   "ru": "Шампанское", "en": "Champagne"}),
     ("gift_box",       100, "🎁", {"uz": "Sovg'a",    "ru": "Подарок",  "en": "Gift Box"}),
-    ("gift_crown",     100, "👑", {"uz": "Toj",       "ru": "Корона",   "en": "Crown"}),
     ("gift_trophy",    100, "🏆", {"uz": "Kubok",     "ru": "Кубок",    "en": "Trophy"}),
 ]
 
