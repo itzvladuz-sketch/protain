@@ -841,12 +841,23 @@ async def pay_balance(callback: CallbackQuery, state: FSMContext) -> None:
     )
 
     try:
+        if order_type == "gift":
+            from services.gift_sender import dispatch_order_gift
+            desc = f"{gift_name} ({qty} Stars)" if gift_name else f"{qty} Stars Gift"
+            await db.set_order_status(order_id, "processing")
+            await dispatch_order_gift(callback.bot, config, order_id, user.id, user.username, recipient, desc, price_uzs)
+            await callback.message.edit_text(
+                f"🎉 <b>Sovg'a buyurtmangiz qabul qilindi!</b>\n\n"
+                f"🧸 <b>{desc}</b> sovg'asi tez orada @{recipient} ga yetkazib beriladi!\n"
+                f"💰 To'landi: <b>{int(price_uzs):,} so'm</b>",
+                reply_markup=_back_kb(lang),
+                parse_mode="HTML",
+            )
+            return
+
         if order_type == "premium":
             tx = await fragment.buy_premium(recipient, qty)
             desc = f"{qty} oy Premium"
-        elif order_type == "gift":
-            tx = await fragment.buy_stars(recipient, qty)
-            desc = f"{gift_name} ({qty} Stars)" if gift_name else f"{qty} Stars Gift"
         else:
             tx = await fragment.buy_stars(recipient, qty)
             desc = f"{qty} Stars"
@@ -1061,6 +1072,7 @@ async def process_user_payment_sms(message: Message, state: FSMContext) -> None:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     admin_kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"✅ #{order_id} Tasdiqlash", callback_data=f"admin_confirm:{order_id}")],
+        [InlineKeyboardButton(text=f"❌ #{order_id} Bekor qilish", callback_data=f"admin_cancel:{order_id}")],
     ])
 
     admin_caption = (
@@ -1159,7 +1171,30 @@ async def admin_confirm_payment(callback: CallbackQuery) -> None:
         await callback.answer("✅ Balans to'ldirildi!")
         return
 
-    # Regular service order (stars, premium, gift)
+    # If order is gift, admin confirm directly marks it completed
+    if order_type == "gift":
+        desc = f"Gift ({quantity} Stars)"
+        await db.set_order_status(order_id, "completed")
+        try:
+            await callback.bot.send_message(
+                user_id,
+                t(lang, "order_completed", amount=desc, recipient=recipient),
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+        await callback.message.edit_text(
+            f"✅ <b>Sovg'a buyurtmasi #{order_id} tasdiqlandi va bajarildi!</b>\n\n"
+            f"👤 Qabul qiluvchi: @{recipient}\n"
+            f"🎁 Sovg'a: <b>{desc}</b>\n"
+            f"💰 Summa: <b>{int(price_uzs):,} so'm</b>",
+            parse_mode="HTML",
+        )
+        await callback.answer("✅ Sovg'a yetkazildi deb belgilandi!")
+        return
+
+    # Regular service order (stars, premium)
     await db.set_order_status(order_id, "paid")
     fragment = FragmentAPIService(
         api_key=config.fragment_api_key,
@@ -1176,9 +1211,6 @@ async def admin_confirm_payment(callback: CallbackQuery) -> None:
         if order_type == "premium":
             tx = await fragment.buy_premium(recipient, quantity)
             desc = f"{quantity} oy Premium"
-        elif order_type == "gift":
-            tx = await fragment.buy_stars(recipient, quantity)
-            desc = f"Gift ({quantity} Stars)"
         else:
             tx = await fragment.buy_stars(recipient, quantity)
             desc = f"{quantity} Stars"
@@ -1226,21 +1258,81 @@ async def admin_cancel_order(callback: CallbackQuery) -> None:
         await callback.answer(f"Buyurtma #{order_id} allaqachon {order['status']}!", show_alert=True)
         return
 
-    await db.set_order_status(order_id, "cancelled")
+    old_status = order["status"]
+    payment_type = order.get("payment_type") or ""
+    price_uzs = float(order.get("price_uzs") or 0.0)
     user_id = int(order["user_id"])
+
+    # If money was already paid/deducted, refund safely to user balance
+    refunded = False
+    if old_status == "processing" or payment_type in ("balance", "humo"):
+        if price_uzs > 0:
+            await db.update_user_balance_uzs(user_id, price_uzs)
+            refunded = True
+
+    await db.set_order_status(order_id, "cancelled")
     lang = await db.get_user_lang(user_id)
+    refund_note = f"\n\n💰 <b>{int(price_uzs):,} so'm</b> balansingizga qaytarildi." if refunded else ""
     try:
         await callback.bot.send_message(
             user_id,
-            f"❌ <b>Sizning #{order_id}-raqamli buyurtmangiz bekor qilindi.</b>\n\n"
+            f"❌ <b>Sizning #{order_id}-raqamli buyurtmangiz bekor qilindi.</b>{refund_note}\n\n"
             f"Savollar bo'lsa @{config.support_username or 'admin'} ga murojaat qiling.",
             parse_mode="HTML",
         )
     except Exception:
         pass
 
+    admin_refund_note = f" (Foydalanuvchi balansiga {int(price_uzs):,} so'm qaytarildi)" if refunded else ""
     await callback.message.edit_text(
-        f"❌ <b>Buyurtma #{order_id} admin tomonidan bekor qilindi.</b>",
+        f"❌ <b>Buyurtma #{order_id} bekor qilindi.</b>{admin_refund_note}",
         parse_mode="HTML",
     )
     await callback.answer("Bekor qilindi!")
+
+
+@router.callback_query(F.data.startswith("order_gift_done:"))
+async def admin_gift_done(callback: CallbackQuery) -> None:
+    config = BotConfig.load()
+    user = callback.from_user
+    if not user or user.id not in config.admin_user_ids:
+        await callback.answer("Ruxsat yo'q!", show_alert=True)
+        return
+
+    order_id = int(callback.data.split(":", 1)[1])
+    db = Database(config.database_path)
+    order = await db.get_order(order_id)
+    if not order:
+        await callback.answer("Buyurtma topilmadi!", show_alert=True)
+        return
+
+    if order["status"] == "completed":
+        await callback.answer("Bu buyurtma allaqachon bajarilgan!", show_alert=True)
+        return
+
+    await db.set_order_status(order_id, "completed")
+    user_id = int(order["user_id"])
+    recipient = order.get("recipient_username") or ""
+    qty = order.get("quantity") or 0
+    price_uzs = float(order.get("price_uzs") or 0.0)
+    lang = await db.get_user_lang(user_id)
+    desc = f"Gift ({qty} Stars)"
+
+    try:
+        await callback.bot.send_message(
+            user_id,
+            t(lang, "order_completed", amount=desc, recipient=recipient),
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        logger.warning("Foydalanuvchiga xabar yuborilmadi: {}", e)
+
+    await callback.message.edit_text(
+        f"✅ <b>Sovg'a buyurtmasi #{order_id} yetkazildi va tasdiqlandi!</b>\n\n"
+        f"👤 Qabul qiluvchi: @{recipient}\n"
+        f"🎁 Sovg'a: <b>{desc}</b>\n"
+        f"💰 Summa: <b>{int(price_uzs):,} so'm</b>",
+        parse_mode="HTML",
+    )
+    await callback.answer("✅ Sovg'a yetkazildi deb tasdiqlandi!")
+

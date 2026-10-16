@@ -246,7 +246,34 @@ class HumoPaymentMonitor:
                     pass
             return True
 
-        # Regular service order (stars, premium, gift)
+        # Gift orders are dispatched via gift sender / admin confirmation
+        if order_type == "gift":
+            from services.gift_sender import dispatch_order_gift
+            desc = f"Gift ({quantity} Stars)"
+            await self.db.set_order_status(order_id, "processing")
+            await dispatch_order_gift(
+                self.bot,
+                self.config,
+                order_id,
+                user_id,
+                username,
+                recipient,
+                desc,
+                price_uzs,
+            )
+            try:
+                await self.bot.send_message(
+                    user_id,
+                    f"🎉 <b>Sovg'a to'lovingiz qabul qilindi!</b>\n\n"
+                    f"🧸 <b>{desc}</b> sovg'asi tez orada @{recipient} ga yetkazib beriladi!\n"
+                    f"💰 To'landi: <b>{int(price_uzs):,} so'm</b>",
+                    parse_mode="HTML",
+                )
+            except Exception as e:
+                logger.warning("Foydalanuvchiga xabar yuborilmadi: {}", e)
+            return True
+
+        # Regular service order (stars, premium)
         await self.db.set_order_status(order_id, "paid")
         fragment = FragmentAPIService(
             api_key=self.config.fragment_api_key,
@@ -263,9 +290,6 @@ class HumoPaymentMonitor:
             if order_type == "premium":
                 tx = await fragment.buy_premium(recipient, quantity)
                 desc = f"{quantity} oy Premium"
-            elif order_type == "gift":
-                tx = await fragment.buy_stars(recipient, quantity)
-                desc = f"Gift ({quantity} Stars)"
             else:
                 tx = await fragment.buy_stars(recipient, quantity)
                 desc = f"{quantity} Stars"

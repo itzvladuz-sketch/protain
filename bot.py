@@ -41,22 +41,13 @@ async def check_fragment_api(config: BotConfig) -> None:
     health = await fragment.check_health()
 
     if health["ok"]:
-        if health.get("provider") == "fragment-api.uz":
-            logger.info(
-                "Fragment-API.uz ulandi: loyiha='{}', hamyon='{}', balans={} TON, javob vaqti={}s",
-                health.get("project"),
-                health.get("wallet"),
-                health.get("balance_ton"),
-                health.get("response_time"),
-            )
-        else:
-            logger.info(
-                "Fragment API доступен: mode={}, payment_method={}, url={}, response={}s",
-                config.fragment_api_mode,
-                config.fragment_payment_method,
-                config.fragment_api_url,
-                health["response_time"],
-            )
+        logger.info(
+            "Fragment API mavjud: mode={}, payment_method={}, url={}, response={}s",
+            config.fragment_api_mode,
+            config.fragment_payment_method,
+            config.fragment_api_url,
+            health["response_time"],
+        )
     else:
         logger.warning(
             "Fragment API не ответил при старте: {}. Бот запустится, но покупки могут падать.",

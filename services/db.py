@@ -261,7 +261,7 @@ class Database:
     async def update_user_balance(self, user_id: int, delta_ton: float) -> None:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
-                "UPDATE users SET balance_ton = balance_ton + ? WHERE user_id = ?",
+                "UPDATE users SET balance_ton = COALESCE(balance_ton, 0.0) + ? WHERE user_id = ?",
                 (delta_ton, user_id),
             )
             await db.commit()
@@ -269,7 +269,7 @@ class Database:
     async def update_user_balance_uzs(self, user_id: int, delta_uzs: float) -> None:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
-                "UPDATE users SET balance_uzs = balance_uzs + ? WHERE user_id = ?",
+                "UPDATE users SET balance_uzs = COALESCE(balance_uzs, 0.0) + ? WHERE user_id = ?",
                 (delta_uzs, user_id),
             )
             await db.commit()

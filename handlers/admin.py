@@ -232,10 +232,12 @@ async def admin_orders(callback: CallbackQuery) -> None:
     for o in orders:
         emoji = STATUS_EMOJIS.get(o["status"], "•")
         date_str = str(o.get("created_at", ""))[:16].replace("T", " ")
+        price_uzs = float(o.get("price_uzs") or 0.0)
+        price_disp = f"{int(price_uzs):,} so'm" if price_uzs > 0 else f"{float(o.get('price_ton',0)):.4f} TON"
         lines.append(
             f"{tg_icon('pin', '🔖')} <b>#{o['id']}</b> {emoji} | {o.get('order_type','?').upper()}\n"
             f"   {tg_icon('user', '👤')} @{o.get('username','?')} → @{o.get('recipient_username','?')}\n"
-            f"   {tg_icon('diamond', '💎')} {float(o.get('price_ton',0)):.4f} TON | {tg_icon('calendar', '📅')} {date_str}"
+            f"   💰 {price_disp} | {tg_icon('calendar', '📅')} {date_str}"
         )
         if len(lines) > 30:  # Telegram message limit safety
             break
@@ -288,10 +290,12 @@ async def admin_orders_filtered(callback: CallbackQuery) -> None:
     for o in orders:
         emoji = STATUS_EMOJIS.get(o["status"], "•")
         date_str = str(o.get("created_at", ""))[:16].replace("T", " ")
+        price_uzs = float(o.get("price_uzs") or 0.0)
+        price_disp = f"{int(price_uzs):,} so'm" if price_uzs > 0 else f"{float(o.get('price_ton',0)):.4f} TON"
         lines.append(
             f"{tg_icon('pin', '🔖')} <b>#{o['id']}</b> {emoji} | {o.get('order_type','?').upper()}\n"
             f"   {tg_icon('user', '👤')} @{o.get('username','?')} → @{o.get('recipient_username','?')}\n"
-            f"   {tg_icon('diamond', '💎')} {float(o.get('price_ton',0)):.4f} TON | {tg_icon('calendar', '📅')} {date_str}"
+            f"   💰 {price_disp} | {tg_icon('calendar', '📅')} {date_str}"
         )
 
     text = "\n\n".join(lines)

@@ -290,8 +290,8 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext) -> None:
     if order_id:
         try:
             order = await db.get_order(int(order_id))
-            # topup buyurtmani bekor qilmaymiz — admin hali tasdiqlashi mumkin
-            if order and order.get("order_type") != "topup":
+            # Faqat to'lanmagan (pending) oddiy buyurtmalarni bekor qilamiz
+            if order and order.get("status") == "pending" and order.get("order_type") != "topup":
                 await db.set_order_status(int(order_id), "cancelled")
         except Exception:
             pass
