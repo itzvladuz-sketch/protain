@@ -241,7 +241,7 @@ class Database:
                 row = await cursor.fetchone()
                 return dict(row) if row else {}
 
-            if username:
+            if username and row["username"] != username:
                 await db.execute(
                     "UPDATE users SET username = ? WHERE user_id = ?",
                     (username, user_id),

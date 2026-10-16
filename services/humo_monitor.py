@@ -22,6 +22,8 @@ def extract_amount_uzs(text: str) -> Optional[float]:
     Rejects invoices, bot commands, withdrawals, and debit messages.
     """
     cleaned = text.replace("\xa0", " ").strip()
+    # Normalize apostrophes: ’, `, '
+    cleaned = cleaned.replace("’", "'").replace("`", "'").replace("‘", "'")
     lower = cleaned.lower()
     normalized = cleaned.replace("\u2795", "+").replace("➕", "+")
 
@@ -47,9 +49,10 @@ def extract_amount_uzs(text: str) -> Optional[float]:
 
     for line in normalized.splitlines():
         line = line.strip()
-        m = re.search(r"\+\s*([0-9]{1,3}(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)\s*(?:uzs|so'?m|сум)?", line, re.IGNORECASE)
+        # +10499 UZS, + 10.168,00 UZS, +15000 so'm, To'ldirish: 15000
+        m = re.search(r"\+\s*([0-9]+(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)", line)
         if not m:
-            m = re.search(r"(?:to'?ldirish|tushum|kirim|popolnenie)[:\s]+\+?\s*([0-9]{1,3}(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)", line, re.IGNORECASE)
+            m = re.search(r"(?:to'?ldirish|tushum|kirim|popolnenie)[:\s]+\+?\s*([0-9]+(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)", line, re.IGNORECASE)
         if m:
             raw = m.group(1).replace(" ", "")
             if "." in raw and "," in raw:
@@ -57,10 +60,19 @@ def extract_amount_uzs(text: str) -> Optional[float]:
                     raw = raw.replace(".", "").replace(",", ".")
                 else:
                     raw = raw.replace(",", "")
-            elif "." in raw and len(raw.split(".")[-1]) == 3:
-                raw = raw.replace(".", "")
-            else:
-                raw = raw.replace(",", "")
+            elif "." in raw:
+                # Agar nuqtadan keyin 2 ta raqam bo'lsa (10168.00)
+                parts = raw.split(".")
+                if len(parts) == 2 and len(parts[1]) in (1, 2):
+                    pass
+                else:
+                    raw = raw.replace(".", "")
+            elif "," in raw:
+                parts = raw.split(",")
+                if len(parts) == 2 and len(parts[1]) in (1, 2):
+                    raw = raw.replace(",", ".")
+                else:
+                    raw = raw.replace(",", "")
             try:
                 amt = float(raw)
                 if amt >= 1000:
