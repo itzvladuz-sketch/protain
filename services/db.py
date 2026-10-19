@@ -253,6 +253,36 @@ class Database:
         rows = await self._fetch("SELECT * FROM users WHERE user_id = ?", (user_id,))
         return rows[0] if rows else None
 
+    async def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
+        clean = username.lstrip("@").strip()
+        rows = await self._fetch("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", (clean,))
+        return rows[0] if rows else None
+
+    async def get_user_by_id_or_username(self, identifier: str) -> Optional[Dict[str, Any]]:
+        clean = str(identifier).strip().lstrip("@")
+        if clean.isdigit():
+            user = await self.get_user(int(clean))
+            if user:
+                return user
+        return await self.get_user_by_username(clean)
+
+    async def set_user_balance_uzs(self, user_id: int, new_balance: float) -> None:
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE users SET balance_uzs = ? WHERE user_id = ?",
+                (max(0.0, float(new_balance)), user_id),
+            )
+            await db.commit()
+
+    async def reset_all_balances_except(self, keep_user_id: int) -> int:
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                "UPDATE users SET balance_uzs = 0.0, balance_ton = 0.0 WHERE user_id != ?",
+                (keep_user_id,),
+            )
+            await db.commit()
+            return cursor.rowcount
+
     async def update_user_lang(self, user_id: int, lang: str) -> None:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("UPDATE users SET lang = ? WHERE user_id = ?", (lang, user_id))
