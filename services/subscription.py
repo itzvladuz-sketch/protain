@@ -14,13 +14,54 @@ from services.config import BotConfig
 from services.db import Database
 
 
-async def check_subscription(bot: Bot, user_id: int, db: Database) -> Tuple[bool, List[Dict[str, Any]]]:
+import time
+
+_CHANNELS_CACHE: Optional[List[Dict[str, Any]]] = None
+_CHANNELS_CACHE_TIME: float = 0.0
+_USER_SUB_CACHE: Dict[int, float] = {}  # user_id -> timestamp when confirmed subscribed
+SUB_CACHE_TTL = 120.0  # 2 minutes cache for confirmed subscriptions
+CHANNELS_CACHE_TTL = 60.0  # 1 minute cache for mandatory channel list
+
+
+def invalidate_subscription_cache(user_id: Optional[int] = None) -> None:
+    """Invalidate channel cache or a specific user's subscription cache."""
+    global _CHANNELS_CACHE, _CHANNELS_CACHE_TIME
+    if user_id:
+        _USER_SUB_CACHE.pop(user_id, None)
+    else:
+        _CHANNELS_CACHE = None
+        _CHANNELS_CACHE_TIME = 0.0
+        _USER_SUB_CACHE.clear()
+
+
+async def check_subscription(
+    bot: Bot,
+    user_id: int,
+    db: Database,
+    force: bool = False,
+) -> Tuple[bool, List[Dict[str, Any]]]:
     """Check whether user is subscribed to all mandatory channels.
 
     Returns (is_subscribed_to_all, unsubscribed_channels_list).
     """
-    channels = await db.get_channels()
+    global _CHANNELS_CACHE, _CHANNELS_CACHE_TIME
+    now = time.time()
+
+    # Fast cache check: If user was confirmed subscribed recently, return immediately (< 1ms)
+    if not force and user_id in _USER_SUB_CACHE:
+        if (now - _USER_SUB_CACHE[user_id]) < SUB_CACHE_TTL:
+            return True, []
+
+    # Get cached channels or query DB
+    if _CHANNELS_CACHE is not None and (now - _CHANNELS_CACHE_TIME) < CHANNELS_CACHE_TTL:
+        channels = _CHANNELS_CACHE
+    else:
+        channels = await db.get_channels()
+        _CHANNELS_CACHE = channels
+        _CHANNELS_CACHE_TIME = now
+
     if not channels:
+        _USER_SUB_CACHE[user_id] = now
         return True, []
 
     unsubscribed = []
@@ -47,7 +88,12 @@ async def check_subscription(bot: Bot, user_id: int, db: Database) -> Tuple[bool
             else:
                 logger.warning("Kanal obunasini tekshirishda kutilmagan xatolik {}: {}", ch_id, err)
 
-    return len(unsubscribed) == 0, unsubscribed
+    if not unsubscribed:
+        _USER_SUB_CACHE[user_id] = now
+        return True, []
+    else:
+        _USER_SUB_CACHE.pop(user_id, None)
+        return False, unsubscribed
 
 
 def build_sub_keyboard(

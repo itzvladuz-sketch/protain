@@ -1132,6 +1132,11 @@ async def adm_process_channel_url(message: Message, state: FSMContext) -> None:
     config = BotConfig.load()
     db = Database(config.database_path)
     await db.add_channel(ch_id, title, url)
+    try:
+        from services.subscription import invalidate_subscription_cache
+        invalidate_subscription_cache()
+    except Exception:
+        pass
 
     await message.answer(
         f"{tg_icon('check', '✅')} <b>Kanal muvaffaqiyatli qo'shildi!</b>\n\n"
@@ -1153,6 +1158,11 @@ async def adm_delete_channel(callback: CallbackQuery) -> None:
 
     db = Database(config.database_path)
     await db.delete_channel(ch_id)
+    try:
+        from services.subscription import invalidate_subscription_cache
+        invalidate_subscription_cache()
+    except Exception:
+        pass
     await callback.answer("✅ Kanal o'chirildi!", show_alert=True)
     await adm_channels_list(callback)
 

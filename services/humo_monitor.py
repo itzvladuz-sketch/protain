@@ -380,16 +380,13 @@ class HumoPaymentMonitor:
         return True
 
     async def _check_expired_humo_orders(self) -> None:
-        """Cancel Humo orders that passed the timeout silently."""
-        now = datetime.now().isoformat(timespec="seconds")
-        pending = await self.db._fetch(
-            "SELECT * FROM orders WHERE payment_type IN ('humo', 'click') AND status = 'pending' AND expires_at < ?",
-            (now,),
-        )
-        for order in pending:
-            order_id = int(order["id"])
-            await self.db.set_order_status(order_id, "cancelled")
-            logger.info("Buyurtma #{} (Humo/Click) muddati o'tib bekor qilindi", order_id)
+        """Cancel Humo orders that passed the timeout silently in one fast batch query."""
+        try:
+            cancelled_count = await self.db.cancel_expired_card_orders()
+            if cancelled_count > 0:
+                logger.info("Muddati o'tgan {} ta Humo/Click buyurtma bekor qilindi", cancelled_count)
+        except Exception as err:
+            logger.warning("Muddati o'tgan buyurtmalarni tekshirishda xatolik: {}", err)
 
     async def _sleep(self, seconds: int) -> None:
         if not self._stop_event:

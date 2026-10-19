@@ -10,8 +10,9 @@ Tables:
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import datetime, date
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, AsyncIterator, Dict, Iterable, List, Optional
 
 import aiosqlite
 from loguru import logger
@@ -57,16 +58,25 @@ class Database:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
+    @asynccontextmanager
+    async def connect(self) -> AsyncIterator[aiosqlite.Connection]:
+        """Provide SQLite connection configured with WAL and 30s busy timeout to prevent locks."""
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
+            await db.execute("PRAGMA busy_timeout = 30000;")
+            await db.execute("PRAGMA synchronous = NORMAL;")
+            yield db
+
     # ─── Init ────────────────────────────────────────────────────────────────
 
     async def init_db(self) -> None:
         """Create all tables and seed default prices."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.executescript("""
                 PRAGMA journal_mode=WAL;
                 PRAGMA synchronous=NORMAL;
                 PRAGMA cache_size=10000;
                 PRAGMA temp_store=MEMORY;
+                PRAGMA busy_timeout=30000;
 
                 CREATE TABLE IF NOT EXISTS users (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -153,9 +163,13 @@ class Database:
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id);
+                CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
                 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
                 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+                CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_type, status);
+                CREATE INDEX IF NOT EXISTS idx_orders_expires ON orders(expires_at);
                 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
+                CREATE INDEX IF NOT EXISTS idx_gift_requests_status ON gift_requests(status);
             """)
             await db.commit()
             await self._ensure_orders_columns(db)
@@ -201,7 +215,7 @@ class Database:
 
     async def init_default_prices(self) -> None:
         """Insert default prices if they don't exist yet and lower legacy 5.0% commission."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             for service, base_usd, comm, disc, min_q, max_q in DEFAULT_PRICES:
                 await db.execute(
                     """
@@ -223,7 +237,7 @@ class Database:
         self, user_id: int, username: Optional[str], ref_by: Optional[int] = None
     ) -> Dict[str, Any]:
         """Get existing user or create a new one with optional referrer."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
             row = await cursor.fetchone()
@@ -267,7 +281,7 @@ class Database:
         return await self.get_user_by_username(clean)
 
     async def set_user_balance_uzs(self, user_id: int, new_balance: float) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute(
                 "UPDATE users SET balance_uzs = ? WHERE user_id = ?",
                 (max(0.0, float(new_balance)), user_id),
@@ -275,7 +289,7 @@ class Database:
             await db.commit()
 
     async def reset_all_balances_except(self, keep_user_id: int) -> int:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             cursor = await db.execute(
                 "UPDATE users SET balance_uzs = 0.0, balance_ton = 0.0 WHERE user_id != ?",
                 (keep_user_id,),
@@ -284,12 +298,12 @@ class Database:
             return cursor.rowcount
 
     async def update_user_lang(self, user_id: int, lang: str) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute("UPDATE users SET lang = ? WHERE user_id = ?", (lang, user_id))
             await db.commit()
 
     async def update_user_balance(self, user_id: int, delta_ton: float) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute(
                 "UPDATE users SET balance_ton = COALESCE(balance_ton, 0.0) + ? WHERE user_id = ?",
                 (delta_ton, user_id),
@@ -297,7 +311,7 @@ class Database:
             await db.commit()
 
     async def update_user_balance_uzs(self, user_id: int, delta_uzs: float) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute(
                 "UPDATE users SET balance_uzs = COALESCE(balance_uzs, 0.0) + ? WHERE user_id = ?",
                 (delta_uzs, user_id),
@@ -305,12 +319,12 @@ class Database:
             await db.commit()
 
     async def ban_user(self, user_id: int) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute("UPDATE users SET is_banned = 1 WHERE user_id = ?", (user_id,))
             await db.commit()
 
     async def unban_user(self, user_id: int) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute("UPDATE users SET is_banned = 0 WHERE user_id = ?", (user_id,))
             await db.commit()
 
@@ -345,7 +359,7 @@ class Database:
         expires_at: datetime,
     ) -> int:
         """Create a new order and return its ID."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             cursor = await db.execute(
                 """
                 INSERT INTO orders (
@@ -424,6 +438,29 @@ class Database:
             "SELECT * FROM orders WHERE status = 'paid' ORDER BY id"
         )
 
+    async def get_pending_ton_orders(self) -> List[Dict[str, Any]]:
+        """Return only pending TON orders for payment monitor."""
+        return await self._fetch(
+            "SELECT * FROM orders WHERE payment_type = 'ton' AND status = 'pending' ORDER BY id"
+        )
+
+    async def cancel_expired_card_orders(self) -> int:
+        """Cancel all expired Humo/Click orders in a single fast query."""
+        now = datetime.now().isoformat(timespec="seconds")
+        async with self.connect() as db:
+            cursor = await db.execute(
+                """
+                UPDATE orders
+                SET status = 'cancelled'
+                WHERE payment_type IN ('humo', 'click')
+                  AND status = 'pending'
+                  AND expires_at < ?
+                """,
+                (now,),
+            )
+            await db.commit()
+            return cursor.rowcount
+
     async def set_order_status(self, order_id: int, status: str, **extra: Any) -> None:
         """Update order status and any additional fields."""
         now = datetime.now().isoformat(timespec="seconds")
@@ -442,7 +479,7 @@ class Database:
 
         set_clause = ", ".join(f"{k} = ?" for k in fields)
         values = list(fields.values()) + [order_id]
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute(f"UPDATE orders SET {set_clause} WHERE id = ?", values)
             await db.commit()
         logger.info("Order #{} -> {}", order_id, status)
@@ -451,7 +488,7 @@ class Database:
 
     async def acquire_paid_order(self, order_id: int) -> bool:
         """Atomically move paid order to processing. Returns True if acquired."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             cursor = await db.execute(
                 "UPDATE orders SET status = 'processing' WHERE id = ? AND status = 'paid'",
                 (order_id,),
@@ -462,7 +499,7 @@ class Database:
     async def get_stats(self) -> Dict[str, Any]:
         """Return aggregate stats for admin panel."""
         today = date.today().isoformat()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             db.row_factory = aiosqlite.Row
 
             total_users = (await (await db.execute("SELECT COUNT(*) FROM users")).fetchone())[0]
@@ -547,7 +584,7 @@ class Database:
             return
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [service]
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute(f"UPDATE prices SET {set_clause} WHERE service = ?", values)
             await db.commit()
         Database._prices_cache.clear()
@@ -560,7 +597,7 @@ class Database:
         return rows[0]["value"] if rows else default
 
     async def set_setting(self, key: str, value: str) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute(
                 "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
                 (key, value),
@@ -570,7 +607,7 @@ class Database:
     # ─── Broadcasts ──────────────────────────────────────────────────────────
 
     async def log_broadcast(self, admin_id: int, text: str, sent: int, failed: int) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute(
                 "INSERT INTO broadcasts (admin_id, message_text, sent_count, fail_count) VALUES (?, ?, ?, ?)",
                 (admin_id, text, sent, failed),
@@ -581,7 +618,7 @@ class Database:
 
     async def reward_referral(self, referrer_id: int, new_user_id: int, stars: int = 2) -> bool:
         """Reward referrer with stars when new user joins/subscribes."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             cursor = await db.execute("SELECT user_id FROM users WHERE user_id = ?", (referrer_id,))
             if not await cursor.fetchone():
                 return False
@@ -601,7 +638,7 @@ class Database:
 
     async def deduct_referral_stars(self, user_id: int, stars: int) -> bool:
         """Deduct referral stars when claiming a gift."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             cursor = await db.execute(
                 "SELECT referral_stars FROM users WHERE user_id = ?", (user_id,)
             )
@@ -617,14 +654,14 @@ class Database:
 
     async def clear_user_referrer(self, user_id: int) -> None:
         """Clear ref_by once referral reward has been processed."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute("UPDATE users SET ref_by = NULL WHERE user_id = ?", (user_id,))
             await db.commit()
 
     # ─── Channels ────────────────────────────────────────────────────────────
 
     async def add_channel(self, channel_id: str, title: str, url: str) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute(
                 """
                 INSERT OR REPLACE INTO channels (channel_id, title, url)
@@ -636,7 +673,7 @@ class Database:
             logger.info("Channel added: {} ({})", title, channel_id)
 
     async def delete_channel(self, channel_id: str) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute("DELETE FROM channels WHERE channel_id = ?", (str(channel_id).strip(),))
             await db.commit()
             logger.info("Channel deleted: {}", channel_id)
@@ -658,7 +695,7 @@ class Database:
         stars_spent: int = 16,
         gift_name: str = "🧸 Ayiqcha",
     ) -> int:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             cursor = await db.execute(
                 """
                 INSERT INTO gift_requests (user_id, username, recipient_username, stars_spent, gift_name)
@@ -687,7 +724,7 @@ class Database:
         self, request_id: int, status: str, error_message: Optional[str] = None
     ) -> None:
         now = datetime.now().isoformat(timespec="seconds")
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             await db.execute(
                 """
                 UPDATE gift_requests
@@ -701,7 +738,7 @@ class Database:
     # ─── Internal ────────────────────────────────────────────────────────────
 
     async def _fetch(self, query: str, params: Iterable[Any] = ()) -> List[Dict[str, Any]]:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self.connect() as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(query, tuple(params))
             rows = await cursor.fetchall()

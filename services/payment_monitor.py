@@ -72,10 +72,20 @@ class PaymentMonitor:
 
     async def tick(self) -> None:
         """One full monitor pass: check pending payments, then fulfill paid orders."""
-        for order in await self.db.get_pending_orders():
-            await self.check_payment(order)
-        for order in await self.db.get_paid_orders():
-            await self.fulfill_paid_order(order)
+        try:
+            for order in await self.db.get_pending_ton_orders():
+                try:
+                    await self.check_payment(order)
+                except Exception as exc:
+                    logger.warning("Error checking TON order #{}: {}", order.get("id"), exc)
+
+            for order in await self.db.get_paid_orders():
+                try:
+                    await self.fulfill_paid_order(order)
+                except Exception as exc:
+                    logger.warning("Error fulfilling paid order #{}: {}", order.get("id"), exc)
+        except Exception as err:
+            logger.exception("Unexpected error in PaymentMonitor tick: {}", err)
 
     async def check_payment(self, order: Dict[str, Any]) -> None:
         """Check a pending TON order."""

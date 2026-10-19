@@ -203,7 +203,7 @@ async def handle_sub_check(callback: CallbackQuery, state: FSMContext) -> None:
     db_user = await db.get_or_create_user(user.id, user.username, ref_by=ref_id)
     lang = db_user.get("lang", "uz")
 
-    is_subscribed, unsubscribed = await check_subscription(callback.bot, user.id, db)
+    is_subscribed, unsubscribed = await check_subscription(callback.bot, user.id, db, force=True)
     if not is_subscribed:
         await callback.answer(t(lang, "sub_not_completed"), show_alert=True)
         # Update keyboard with remaining channels

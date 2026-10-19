@@ -90,17 +90,21 @@ class TONService:
         if self.toncenter_api_key:
             params["api_key"] = self.toncenter_api_key
 
-        timeout = aiohttp.ClientTimeout(total=12)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(
-                "https://toncenter.com/api/v2/getTransactions",
-                params=params,
-                headers={"User-Agent": "Fragment Stars Demo Bot"},
-            ) as response:
-                if response.status != 200:
-                    logger.warning("TonCenter вернул HTTP {}", response.status)
-                    return None
-                data = await response.json()
+        timeout = aiohttp.ClientTimeout(total=6)
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(
+                    "https://toncenter.com/api/v2/getTransactions",
+                    params=params,
+                    headers={"User-Agent": "Fragment Stars Demo Bot"},
+                ) as response:
+                    if response.status != 200:
+                        logger.warning("TonCenter вернул HTTP {}", response.status)
+                        return None
+                    data = await response.json()
+        except Exception as exc:
+            logger.warning("TonCenter so'rovida tarmoq xatosi: {}", exc)
+            return None
 
         if not data.get("ok"):
             logger.warning("TonCenter error: {}", data)
