@@ -101,6 +101,15 @@ TEXTS: dict = {
         "⏱ To'lov muddati: <b>30 daqiqa</b>\n\n"
         "⚠️ <b>DIQQAT:</b> To'lov avtomatik tarzda 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount:,}</code> so'm o'tkazing!"
     ),
+    "click_payment_instructions": (
+        "🔵 <b>Click (Uzcard) to'lov:</b>\n\n"
+        "💳 Karta:\n<code>{card_number}</code>\n"
+        "👤 Egasi: <b>{card_holder}</b>\n\n"
+        "💰 To'lov summasi:\n<code>{amount:,}</code> so'm\n\n"
+        "⏱ To'lov muddati: <b>30 daqiqa</b>\n\n"
+        "⚠️ <b>DIQQAT:</b> To'lov avtomatik tarzda 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount:,}</code> so'm o'tkazing!\n\n"
+        "<i>To'lovni @clickuz boti yoki Click ilovasi orqali amalga oshirishingiz mumkin.</i>"
+    ),
     "payment_not_found": "⏳ To'lov hali topilmadi. Pul o'tkazgan bo'lsangiz, 1-2 daqiqa kuting.",
     "payment_found": "✅ To'lov qabul qilindi!",
     "order_completed": (
@@ -118,8 +127,9 @@ TEXTS: dict = {
     ),
     "btn_topup": "To'ldirish",
     "btn_pay_humo": "Humo orqali to'lash",
+    "btn_pay_click": "Click orqali to'lash",
     "btn_pay_balance": "Balansdan to'lash",
-    "balance_topup_menu": '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Balansni to\'ldirish (Humo):</b>\n\nSummani tanlang yoki so\'mda yozing (masalan: 50000):',
+    "balance_topup_menu": '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Balansni to\'ldirish (Humo / Click):</b>\n\nSummani tanlang yoki so\'mda yozing (masalan: 50000):',
     "balance_topup_min_error": "⚠️ Minimal summa: {min:,} so'm",
     "balance_topup_uzs_completed": (
         '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Balans to\'ldirildi!</b>\n\n'

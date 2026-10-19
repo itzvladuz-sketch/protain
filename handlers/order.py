@@ -74,11 +74,13 @@ def _recipient_kb(lang: str) -> InlineKeyboardMarkup:
     ])
 
 
-def _payment_kb(lang: str, order_id: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_check_payment"), callback_data=f"check:{order_id}", icon_custom_emoji_id=ICONS["check"])],
-        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main", icon_custom_emoji_id=ICONS["cancel"])],
-    ])
+def _payment_kb(lang: str, order_id: int, payment_type: str = "humo") -> InlineKeyboardMarkup:
+    buttons = []
+    if payment_type == "click":
+        buttons.append([InlineKeyboardButton(text="📲 Click (@clickuz) da to'lash", url="https://t.me/clickuz")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_check_payment"), callback_data=f"check:{order_id}", icon_custom_emoji_id=ICONS["check"])])
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main", icon_custom_emoji_id=ICONS["cancel"])])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def _order_confirm_kb(
@@ -95,7 +97,10 @@ def _order_confirm_kb(
     bal_label = f"{t(lang, 'btn_pay_balance')} ({bal_str})"
     buttons = [
         [InlineKeyboardButton(text=bal_label, callback_data="pay:balance", icon_custom_emoji_id=ICONS["wallet"])],
-        [InlineKeyboardButton(text=t(lang, "btn_pay_humo"), callback_data="pay:humo", icon_custom_emoji_id=ICONS["card"])],
+        [
+            InlineKeyboardButton(text=t(lang, "btn_pay_humo"), callback_data="pay:humo", icon_custom_emoji_id=ICONS["card"]),
+            InlineKeyboardButton(text=t(lang, "btn_pay_click"), callback_data="pay:click", icon_custom_emoji_id=ICONS["card"]),
+        ],
         [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main", icon_custom_emoji_id=ICONS["cancel"])],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -208,6 +213,7 @@ async def _notify_admin_new_order(
 ) -> None:
     db = Database(config.database_path)
     order = await db.get_order(order_id)
+    payment_type = (order.get("payment_type") if order else "") or "humo"
     recipient = (order.get("recipient_username") or "") if order else ""
     qty = int(order.get("quantity") or 1) if order else 1
 
@@ -227,15 +233,22 @@ async def _notify_admin_new_order(
         [InlineKeyboardButton(text=f"❌ #{order_id} Bekor qilish", callback_data=f"admin_cancel:{order_id}")],
     ])
 
+    if payment_type == "click":
+        card_type_title = "Click (Uzcard)"
+        card_num = config.click_card_number or "8801 9102 6669 7252"
+    else:
+        card_type_title = "Humo"
+        card_num = config.humo_card_number or "9860 3501 4730 5402"
+
     caption = (
-        f"💳 <b>Yangi Humo to'lov kutilmoqda!</b>\n\n"
+        f"💳 <b>Yangi {card_type_title} to'lov kutilmoqda!</b>\n\n"
         f"🆔 Buyurtma: #{order_id}\n"
         f"👤 Foydalanuvchi: <code>{user_id}</code> (@{username or 'yoq'})\n"
         f"{rec_line}"
         f"📦 Mahsulot: <b>{desc}</b>\n"
         f"💵 Summa: <b>{int(price_uzs):,} so'm</b>\n"
-        f"💳 Humo karta: <code>{config.humo_card_number}</code>\n\n"
-        f"<i>Kartangizga to'lov kelgach, pastdagi tugmani bosib darhol tasdiqlashingiz mumkin:</i>"
+        f"💳 Karta ({card_type_title}): <code>{card_num}</code>\n\n"
+        f"<i>To'lov kelgach, pastdagi tugmani bosib darhol tasdiqlashingiz mumkin:</i>"
     )
 
     for adm_id in config.admin_user_ids:
@@ -244,7 +257,6 @@ async def _notify_admin_new_order(
             logger.info("Adminga (#{}: {}) to'lov bildirishnomasi yuborildi", adm_id, order_id)
         except Exception as e:
             logger.warning("Adminga bildirishnoma yuborilmadi: {}", e)
-
 
 
 @router.callback_query(F.data == "balance:topup")
@@ -274,7 +286,7 @@ async def topup_preset_chosen(callback: CallbackQuery, state: FSMContext) -> Non
         amt = float(raw)
     except ValueError:
         return
-    await _start_humo_topup_order(callback.message, callback.from_user, amt, state)
+    await _show_topup_method_choice(callback.message, callback.from_user, amt, state)
     await callback.answer()
 
 
@@ -298,24 +310,63 @@ async def topup_manual_amount(message: Message, state: FSMContext) -> None:
         await message.answer(t(lang, "balance_topup_min_error", min=5000), reply_markup=_topup_presets_kb(lang), parse_mode="HTML")
         return
 
-    await _start_humo_topup_order(message, user, amt, state)
+    await _show_topup_method_choice(message, user, amt, state)
 
 
-async def _start_humo_topup_order(target: Message, user, amt: float, state: FSMContext) -> None:
-    import random
+def _topup_method_kb(lang: str, amt: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💳 Humo orqali to'lash", callback_data=f"topup_pay:humo:{amt}")],
+        [InlineKeyboardButton(text="🔵 Click orqali to'lash", callback_data=f"topup_pay:click:{amt}")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="balance:topup", icon_custom_emoji_id=ICONS["back"])],
+    ])
+
+
+async def _show_topup_method_choice(target: Message, user, amt: float, state: FSMContext) -> None:
     config = BotConfig.load()
     db = Database(config.database_path)
     db_user = await db.get_or_create_user(user.id, user.username)
     lang = db_user.get("lang", "uz")
 
-    card_num = config.humo_card_number or "9860 **** **** ****"
-    card_holder = config.humo_card_holder or "HUMO CARD"
+    int_amt = int(amt)
+    text = (
+        f"💳 <b>Balansni to'ldirish summasi: {int_amt:,} so'm</b>\n\n"
+        f"To'lov turini tanlang:"
+    )
+    kb = _topup_method_kb(lang, int_amt)
+    try:
+        await target.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    except Exception:
+        await target.answer(text, reply_markup=kb, parse_mode="HTML")
+
+
+@router.callback_query(F.data.startswith("topup_pay:"))
+async def topup_pay_selected(callback: CallbackQuery, state: FSMContext) -> None:
+    parts = callback.data.split(":")
+    pay_type = parts[1]
+    amt = float(parts[2])
+    await _create_card_topup_order(callback.message, callback.from_user, amt, pay_type, state)
+    await callback.answer()
+
+
+async def _create_card_topup_order(target: Message, user, amt: float, pay_type: str, state: FSMContext) -> None:
+    config = BotConfig.load()
+    db = Database(config.database_path)
+    db_user = await db.get_or_create_user(user.id, user.username)
+    lang = db_user.get("lang", "uz")
+
     rate = getattr(config, "usd_to_uzs_rate", 12900.0)
-
     final_amt = float(int(amt))
-
-    # 30 minutes expiry
     expires_at = datetime.now() + timedelta(minutes=30)
+
+    if pay_type == "click":
+        card_num = config.click_card_number or "8801 9102 6669 7252"
+        card_holder = config.click_card_holder or "CLICK CARD"
+        instr_key = "click_payment_instructions"
+    else:
+        card_num = config.humo_card_number or "9860 3501 4730 5402"
+        card_holder = config.humo_card_holder or "HUMO CARD"
+        instr_key = "humo_payment_instructions"
+
     order_id = await db.create_order(
         user_id=user.id,
         username=user.username,
@@ -326,22 +377,22 @@ async def _start_humo_topup_order(target: Message, user, amt: float, state: FSMC
         price_ton=0.0,
         price_uzs=final_amt,
         discount_percent=0.0,
-        payment_type="humo",
+        payment_type=pay_type,
         payment_address=card_num,
-        payment_comment=f"HUMO-{user.id}",
+        payment_comment=f"{pay_type.upper()}-{user.id}",
         expires_at=expires_at,
     )
 
     await state.update_data(order_id=order_id)
     await state.set_state(OrderFlow.waiting_payment)
-    text = t(lang, "humo_payment_instructions",
+    text = t(lang, instr_key,
              card_number=card_num,
              card_holder=card_holder,
              amount=int(final_amt))
     try:
-        await target.edit_text(text, reply_markup=_payment_kb(lang, order_id), parse_mode="HTML")
+        await target.edit_text(text, reply_markup=_payment_kb(lang, order_id, payment_type=pay_type), parse_mode="HTML")
     except Exception:
-        await target.answer(text, reply_markup=_payment_kb(lang, order_id), parse_mode="HTML")
+        await target.answer(text, reply_markup=_payment_kb(lang, order_id, payment_type=pay_type), parse_mode="HTML")
 
     # Notify admin
     await _notify_admin_new_order(target.bot, config, order_id, user.id, user.username or "", "topup", final_amt)
@@ -792,14 +843,17 @@ async def pay_balance(callback: CallbackQuery, state: FSMContext) -> None:
         price_str = format_currency(price_usd, lang, config)
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="balance:topup")],
-            [InlineKeyboardButton(text=t(lang, "btn_pay_humo"), callback_data="pay:humo")],
+            [
+                InlineKeyboardButton(text=t(lang, "btn_pay_humo"), callback_data="pay:humo"),
+                InlineKeyboardButton(text=t(lang, "btn_pay_click"), callback_data="pay:click"),
+            ],
             [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main")],
         ])
         await callback.message.edit_text(
             f"⚠️ <b>Balansingizda yetarli mablag' yo'q!</b>\n\n"
             f"💰 Sizning balansingiz: <b>{bal_str}</b>\n"
             f"💳 To'lov summasi: <b>{price_str}</b>\n\n"
-            f"<i>Xarid qilish uchun avval balansni to'ldiring yoki Humo kartasi orqali to'lang:</i>",
+            f"<i>Xarid qilish uchun avval balansni to'ldiring yoki Humo / Click orqali to'lang:</i>",
             reply_markup=kb,
             parse_mode="HTML",
         )
@@ -882,10 +936,19 @@ async def pay_balance(callback: CallbackQuery, state: FSMContext) -> None:
         )
 
 
-# ─── Payment via Humo ────────────────────────────────────────────────────────
+# ─── Payment via Humo & Click ────────────────────────────────────────────────
 
 @router.callback_query(F.data == "pay:humo", OrderFlow.confirm_order)
 async def pay_humo(callback: CallbackQuery, state: FSMContext) -> None:
+    await _create_service_card_order(callback, state, "humo")
+
+
+@router.callback_query(F.data == "pay:click", OrderFlow.confirm_order)
+async def pay_click(callback: CallbackQuery, state: FSMContext) -> None:
+    await _create_service_card_order(callback, state, "click")
+
+
+async def _create_service_card_order(callback: CallbackQuery, state: FSMContext, pay_type: str) -> None:
     config = BotConfig.load()
     db = Database(config.database_path)
     user = callback.from_user
@@ -915,8 +978,14 @@ async def pay_humo(callback: CallbackQuery, state: FSMContext) -> None:
     else:
         order_type = "gift"
 
-    card_num = config.humo_card_number or "9860 **** **** ****"
-    card_holder = config.humo_card_holder or "ADMIN"
+    if pay_type == "click":
+        card_num = config.click_card_number or "8801 9102 6669 7252"
+        card_holder = config.click_card_holder or "CLICK CARD"
+        instr_key = "click_payment_instructions"
+    else:
+        card_num = config.humo_card_number or "9860 3501 4730 5402"
+        card_holder = config.humo_card_holder or "HUMO CARD"
+        instr_key = "humo_payment_instructions"
 
     order_id = await db.create_order(
         user_id=user.id,
@@ -928,9 +997,9 @@ async def pay_humo(callback: CallbackQuery, state: FSMContext) -> None:
         price_ton=0.0,
         price_uzs=float(price_uzs),
         discount_percent=discount,
-        payment_type="humo",
+        payment_type=pay_type,
         payment_address=card_num,
-        payment_comment=f"HUMO-{user.id}",
+        payment_comment=f"{pay_type.upper()}-{user.id}",
         expires_at=expires_at,
     )
 
@@ -938,11 +1007,11 @@ async def pay_humo(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(OrderFlow.waiting_payment)
 
     await callback.message.edit_text(
-        t(lang, "humo_payment_instructions",
+        t(lang, instr_key,
           card_number=card_num,
           card_holder=card_holder,
           amount=int(price_uzs)),
-        reply_markup=_payment_kb(lang, order_id),
+        reply_markup=_payment_kb(lang, order_id, payment_type=pay_type),
         parse_mode="HTML",
     )
     await callback.answer()
@@ -1265,7 +1334,7 @@ async def admin_cancel_order(callback: CallbackQuery) -> None:
 
     # If money was already paid/deducted, refund safely to user balance
     refunded = False
-    if old_status == "processing" or payment_type in ("balance", "humo"):
+    if old_status == "processing" or payment_type in ("balance", "humo", "click"):
         if price_uzs > 0:
             await db.update_user_balance_uzs(user_id, price_uzs)
             refunded = True

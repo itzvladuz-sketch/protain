@@ -17,8 +17,8 @@ from services.fragment_api import FragmentAPIService
 
 
 def extract_amount_uzs(text: str) -> Optional[float]:
-    """Parse incoming bank payment sum from notification message.
-    Strictly matches deposit messages (e.g. +50 000 UZS, Karta to'ldirildi: +50 000 UZS).
+    """Parse incoming bank payment sum from notification message (Humo, Click, Bank SMS).
+    Strictly matches deposit messages (e.g. +50 000 UZS, Karta to'ldirildi: +50 000 UZS, Click: Summa 15 000 UZS).
     Rejects invoices, bot commands, withdrawals, and debit messages.
     """
     cleaned = text.replace("\xa0", " ").strip()
@@ -31,9 +31,10 @@ def extract_amount_uzs(text: str) -> Optional[float]:
     invoice_keywords = (
         "to'lov summasi", "to'lov muddati", "buyurtma #", "so'rov #",
         "admin panel", "karta raqami:", "qabul qiluvchi:", "balansdan to'lash",
-        "humo to'lov:", "оплата через humo", "humo payment:", "spisanie",
-        "yechildi", "chiqim", "oplata:", "oplata tovar", "karta blok",
-        "komissiya", "avtomatik to'lov:", "yechib olindi",
+        "humo to'lov:", "click to'lov:", "оплата через humo", "оплата через click",
+        "humo payment:", "click payment:", "spisanie", "yechildi", "chiqim",
+        "oplata:", "oplata tovar", "karta blok", "komissiya",
+        "avtomatik to'lov:", "yechib olindi", "snyatie", "списание",
     )
     if any(k in lower for k in invoice_keywords):
         return None
@@ -43,42 +44,70 @@ def extract_amount_uzs(text: str) -> Optional[float]:
         "to'ldirish", "toldirish", "to'ldirildi", "toldirildi",
         "hisobingiz to'ldirildi", "karta to'ldirildi", "kartangiz to'ldirildi",
         "kelib tushdi", "перевод на карту", "зачисление", "пополнение",
+        "vhodjaschij", "vhod", "o'tkazma", "перевод", "postupili",
+        "zachislenie", "perevod",
     )
     if not (any(m in lower for m in deposit_markers) or "+" in normalized):
         return None
 
-    for line in normalized.splitlines():
-        line = line.strip()
-        # +10499 UZS, + 10.168,00 UZS, +15000 so'm, To'ldirish: 15000
-        m = re.search(r"\+\s*([0-9]+(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)", line)
-        if not m:
-            m = re.search(r"(?:to'?ldirish|tushum|kirim|popolnenie)[:\s]+\+?\s*([0-9]+(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)", line, re.IGNORECASE)
-        if m:
-            raw = m.group(1).replace(" ", "")
-            if "." in raw and "," in raw:
-                if raw.rfind(",") > raw.rfind("."):
-                    raw = raw.replace(".", "").replace(",", ".")
-                else:
-                    raw = raw.replace(",", "")
-            elif "." in raw:
-                # Agar nuqtadan keyin 2 ta raqam bo'lsa (10168.00)
-                parts = raw.split(".")
-                if len(parts) == 2 and len(parts[1]) in (1, 2):
+    for raw_line in normalized.splitlines():
+        # Split by comma or semicolon in case bank SMS puts everything on one line
+        chunks = re.split(r"[,;]", raw_line) if ("," in raw_line or ";" in raw_line) else [raw_line]
+        for line in chunks:
+            line = line.strip()
+            line_lower = line.lower()
+            if not line:
+                continue
+            # Skip balance chunks so we never confuse total balance with incoming amount
+            if any(b in line_lower for b in ("balans:", "баланс:", "qoldiq:", "остаток:", "balance:")):
+                continue
+            # Skip card number chunks
+            if re.search(r"^(?:karta|карта|card|pan|schet|счет)[:\s]+[0-9* ]{8,}", line_lower):
+                continue
+
+            # Try matching with +
+            m = re.search(r"\+\s*([0-9]+(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)", line)
+            if not m:
+                # Try matching with keywords like Summa, to'ldirish, etc.
+                m = re.search(
+                    r"(?:to'?ldirish|tushum|kirim|popolnenie|summa|сумма|зачисление|zachislenie|perevod|o'?tkazma)[:\s]+\+?\s*([0-9]+(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)",
+                    line,
+                    re.IGNORECASE,
+                )
+            if not m and any(m in lower for m in deposit_markers):
+                # Try matching amount followed by currency: 15 000 UZS
+                m = re.search(
+                    r"(?:^|[\s:+])([0-9]+(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)\s*(?:uzs|so'?m|sum|сум)",
+                    line,
+                    re.IGNORECASE,
+                )
+
+            if m:
+                raw = m.group(1).replace(" ", "")
+                if "." in raw and "," in raw:
+                    if raw.rfind(",") > raw.rfind("."):
+                        raw = raw.replace(".", "").replace(",", ".")
+                    else:
+                        raw = raw.replace(",", "")
+                elif "." in raw:
+                    # Agar nuqtadan keyin 2 ta raqam bo'lsa (10168.00)
+                    parts = raw.split(".")
+                    if len(parts) == 2 and len(parts[1]) in (1, 2):
+                        pass
+                    else:
+                        raw = raw.replace(".", "")
+                elif "," in raw:
+                    parts = raw.split(",")
+                    if len(parts) == 2 and len(parts[1]) in (1, 2):
+                        raw = raw.replace(",", ".")
+                    else:
+                        raw = raw.replace(",", "")
+                try:
+                    amt = float(raw)
+                    if amt >= 1000:
+                        return amt
+                except ValueError:
                     pass
-                else:
-                    raw = raw.replace(".", "")
-            elif "," in raw:
-                parts = raw.split(",")
-                if len(parts) == 2 and len(parts[1]) in (1, 2):
-                    raw = raw.replace(",", ".")
-                else:
-                    raw = raw.replace(",", "")
-            try:
-                amt = float(raw)
-                if amt >= 1000:
-                    return amt
-            except ValueError:
-                pass
     return None
 
 
@@ -171,23 +200,24 @@ class HumoPaymentMonitor:
                     if sender_id == my_bot_id or (my_bot_username and sender_username == my_bot_username):
                         return
 
-                    target_bot = getattr(self.config, "notification_bot_username", "").lstrip("@").lower()
+                    raw_targets = getattr(self.config, "notification_bot_username", "")
+                    target_bots = [b.strip().lstrip("@").lower() for b in raw_targets.replace(";", ",").split(",") if b.strip()]
 
-                    # Filter to genuine bank notification sources
+                    # Filter to genuine bank notification sources (Humo, Click, Bank SMS)
                     is_match = False
-                    if target_bot and (target_bot == sender_username or target_bot in sender_username or target_bot in sender_title):
+                    if target_bots and any(tb == sender_username or tb in sender_username or tb in sender_title for tb in target_bots):
                         is_match = True
-                    elif any(bank_tag in sender_username or bank_tag in sender_title for bank_tag in ("humo", "humocard", "payme", "click", "bank", "sms", "pay")):
+                    elif any(bank_tag in sender_username or bank_tag in sender_title for bank_tag in ("humo", "humocard", "payme", "click", "clickuz", "bank", "sms", "pay")):
                         is_match = True
 
                     if not is_match:
                         return
 
                     msg_text = event.raw_text or ""
-                    logger.info("Bank/Humo xabari keldi (@{} / {}): {}", sender_username, sender_title, msg_text[:80].replace('\n', ' '))
+                    logger.info("Bank/To'lov xabari keldi (@{} / {}): {}", sender_username, sender_title, msg_text[:80].replace('\n', ' '))
                     amt = extract_amount_uzs(msg_text)
                     if amt:
-                        logger.info("Humo to'lov xabari aniqlandi: {} so'm (yuboruvchi: @{} / {})", amt, sender_username, sender_title)
+                        logger.info("To'lov xabari aniqlandi: {} so'm (yuboruvchi: @{} / {})", amt, sender_username, sender_title)
                         await self.process_incoming_humo_payment(amt, msg_text)
                 except Exception as err:
                     logger.warning("Xabarni tahlil qilishda xatolik: {}", err)
@@ -353,13 +383,13 @@ class HumoPaymentMonitor:
         """Cancel Humo orders that passed the timeout silently."""
         now = datetime.now().isoformat(timespec="seconds")
         pending = await self.db._fetch(
-            "SELECT * FROM orders WHERE payment_type = 'humo' AND status = 'pending' AND expires_at < ?",
+            "SELECT * FROM orders WHERE payment_type IN ('humo', 'click') AND status = 'pending' AND expires_at < ?",
             (now,),
         )
         for order in pending:
             order_id = int(order["id"])
             await self.db.set_order_status(order_id, "cancelled")
-            logger.info("Humo buyurtma #{} muddati o'tib bekor qilindi", order_id)
+            logger.info("Buyurtma #{} (Humo/Click) muddati o'tib bekor qilindi", order_id)
 
     async def _sleep(self, seconds: int) -> None:
         if not self._stop_event:

@@ -343,7 +343,7 @@ class Database:
         rows = await self._fetch(
             """
             SELECT * FROM orders
-            WHERE payment_type = 'humo' AND status = 'pending'
+            WHERE payment_type IN ('humo', 'click') AND status = 'pending'
             AND ABS(price_uzs - ?) < 1
             AND expires_at >= ?
             ORDER BY id ASC LIMIT 1
@@ -357,7 +357,7 @@ class Database:
         rows = await self._fetch(
             """
             SELECT * FROM orders
-            WHERE payment_type = 'humo' AND status = 'pending'
+            WHERE payment_type IN ('humo', 'click') AND status = 'pending'
             AND ABS(price_uzs - ?) <= 50
             AND expires_at >= ?
             ORDER BY id ASC LIMIT 1

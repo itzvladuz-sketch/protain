@@ -98,8 +98,17 @@ TEXTS: dict = {
         "💳 Card:\n<code>{card_number}</code>\n"
         "👤 Cardholder: <b>{card_holder}</b>\n\n"
         "💰 Payment Amount:\n<code>{amount:,}</code> UZS\n\n"
-        "⏱ Payment window: <b>5 minutes</b>\n\n"
+        "⏱ Payment window: <b>30 minutes</b>\n\n"
         "⚠️ <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount:,}</code> UZS!"
+    ),
+    "click_payment_instructions": (
+        "🔵 <b>Click (Uzcard) Payment:</b>\n\n"
+        "💳 Card:\n<code>{card_number}</code>\n"
+        "👤 Cardholder: <b>{card_holder}</b>\n\n"
+        "💰 Payment Amount:\n<code>{amount:,}</code> UZS\n\n"
+        "⏱ Payment window: <b>30 minutes</b>\n\n"
+        "⚠️ <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount:,}</code> UZS!\n\n"
+        "<i>You can transfer via @clickuz bot or Click Up app.</i>"
     ),
     "payment_not_found": "⏳ Payment not found yet. If you transferred, please wait 1-2 minutes.",
     "payment_found": "✅ Payment received!",
@@ -118,8 +127,9 @@ TEXTS: dict = {
     ),
     "btn_topup": "Top Up",
     "btn_pay_humo": "Humo",
+    "btn_pay_click": "Click (Uzcard)",
     "btn_pay_balance": "Pay from balance",
-    "balance_topup_menu": '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Top up balance (Humo):</b>\n\nChoose an amount or enter in UZS (e.g. 50000):',
+    "balance_topup_menu": '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Top up balance (Humo / Click):</b>\n\nChoose an amount or enter in UZS (e.g. 50000):',
     "balance_topup_min_error": "⚠️ Minimum amount: {min:,} UZS",
     "balance_topup_uzs_completed": (
         '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Balance topped up!</b>\n\n'

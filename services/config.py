@@ -90,6 +90,8 @@ class BotConfig:
 
     humo_card_number: str
     humo_card_holder: str
+    click_card_number: str
+    click_card_holder: str
     tg_api_id: Optional[int]
     tg_api_hash: Optional[str]
     notification_bot_username: str
@@ -160,11 +162,13 @@ class BotConfig:
             freekassa_shop_id=_int("FREEKASSA_SHOP_ID", 0),
             freekassa_method=_int("FREEKASSA_METHOD", 44),
             freekassa_customer_ip=os.getenv("FREEKASSA_CUSTOMER_IP", "127.0.0.1"),
-            humo_card_number=os.getenv("HUMO_CARD_NUMBER", ""),
-            humo_card_holder=os.getenv("HUMO_CARD_HOLDER", ""),
+            humo_card_number=os.getenv("HUMO_CARD_NUMBER", "9860 3501 4730 5402").strip() or "9860 3501 4730 5402",
+            humo_card_holder=os.getenv("HUMO_CARD_HOLDER", "HUMO CARD").strip() or "HUMO CARD",
+            click_card_number=os.getenv("CLICK_CARD_NUMBER", "8801 9102 6669 7252").strip() or "8801 9102 6669 7252",
+            click_card_holder=os.getenv("CLICK_CARD_HOLDER", "CLICK CARD").strip() or "CLICK CARD",
             tg_api_id=_int("TG_API_ID", 0) or None,
             tg_api_hash=os.getenv("TG_API_HASH") or None,
-            notification_bot_username=os.getenv("NOTIFICATION_BOT_USERNAME", ""),
+            notification_bot_username=os.getenv("NOTIFICATION_BOT_USERNAME", "@HUMOcardbot,@clickuz").strip() or "@HUMOcardbot,@clickuz",
             usd_to_uzs_rate=_float("USD_TO_UZS_RATE", 12900.0),
             telethon_session_string=os.getenv("TELETHON_SESSION_STRING", "").strip(),
             version=os.getenv("BOT_VERSION", "2.0-demo"),
