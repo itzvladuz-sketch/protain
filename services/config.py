@@ -170,7 +170,7 @@ class BotConfig:
             tg_api_hash=os.getenv("TG_API_HASH") or None,
             notification_bot_username=os.getenv("NOTIFICATION_BOT_USERNAME", "@HUMOcardbot,@clickuz").strip() or "@HUMOcardbot,@clickuz",
             usd_to_uzs_rate=_float("USD_TO_UZS_RATE", 12900.0),
-            telethon_session_string=os.getenv("TELETHON_SESSION_STRING", "").strip(),
+            telethon_session_string=os.getenv("TELETHON_SESSION_STRING", "").strip().strip("'\""),
             version=os.getenv("BOT_VERSION", "2.0-demo"),
         )
         config._warn_about_optional_settings()

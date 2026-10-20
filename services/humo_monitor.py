@@ -161,7 +161,8 @@ class HumoPaymentMonitor:
             my_bot_id = bot_me.id
             my_bot_username = (bot_me.username or "").lower()
 
-            session = StringSession(self.config.telethon_session_string) if getattr(self.config, "telethon_session_string", "") else "humo_listener_session"
+            clean_session = (getattr(self.config, "telethon_session_string", "") or "").strip().strip("'\"")
+            session = StringSession(clean_session) if clean_session else "humo_listener_session"
             self.client = TelegramClient(
                 session,
                 int(self.config.tg_api_id),
