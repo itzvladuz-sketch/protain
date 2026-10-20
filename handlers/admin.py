@@ -51,6 +51,8 @@ class AdminStates(StatesGroup):
     waiting_channel_url       = State()
     waiting_give_balance_target = State()
     waiting_give_balance_amount = State()
+    waiting_take_balance_target = State()
+    waiting_take_balance_amount = State()
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,14 +68,61 @@ def _admin_main_kb() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="Foydalanuvchilar", callback_data="adm:users", icon_custom_emoji_id=ICONS["users"]),
         ],
         [
-            InlineKeyboardButton(text="Balans to'ldirish (Userga)", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["wallet"]),
-            InlineKeyboardButton(text="Sovg'a so'rovlari", callback_data="adm:gift_requests", icon_custom_emoji_id=ICONS["gift"]),
+            InlineKeyboardButton(text="Balanslar ro'yxati", callback_data="adm:balance_list", icon_custom_emoji_id=ICONS["wallet"]),
+            InlineKeyboardButton(text="Balans to'ldirish", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["money"]),
         ],
         [
+            InlineKeyboardButton(text="Sovg'a so'rovlari", callback_data="adm:gift_requests", icon_custom_emoji_id=ICONS["gift"]),
             InlineKeyboardButton(text="Majburiy kanallar", callback_data="adm:channels", icon_custom_emoji_id=ICONS["megaphone"]),
+        ],
+        [
             InlineKeyboardButton(text="Xabar yuborish", callback_data="adm:broadcast", icon_custom_emoji_id=ICONS["send"]),
         ],
     ])
+
+
+def _user_card_kb(user_id: int, is_banned: bool) -> InlineKeyboardMarkup:
+    ban_btn = (
+        InlineKeyboardButton(text="Blokdan chiqarish", callback_data=f"adm:unban:{user_id}", icon_custom_emoji_id=ICONS["check"])
+        if is_banned
+        else InlineKeyboardButton(text="Bloklash", callback_data=f"adm:ban:{user_id}", icon_custom_emoji_id=ICONS["ban"])
+    )
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="➕ Pul qo'shish", callback_data=f"adm:add_bal:{user_id}", icon_custom_emoji_id=ICONS["wallet"]),
+            InlineKeyboardButton(text="➖ Pul ayirish", callback_data=f"adm:take_bal:{user_id}", icon_custom_emoji_id=ICONS["money"]),
+        ],
+        [
+            InlineKeyboardButton(text="🔄 Balansni 0 qilish", callback_data=f"adm:zero_bal:{user_id}", icon_custom_emoji_id=ICONS["trash"]),
+            ban_btn,
+        ],
+        [
+            InlineKeyboardButton(text="💰 Balanslar ro'yxati", callback_data="adm:balance_list", icon_custom_emoji_id=ICONS["wallet"]),
+            InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"]),
+        ],
+    ])
+
+
+def _render_user_card(user: dict, orders_count: int) -> str:
+    user_id = int(user["user_id"])
+    date_str = str(user.get("created_at", ""))[:10]
+    banned = "Ha 🚫" if user.get("is_banned") else "Yo'q ✅"
+    lang = user.get("lang", "uz")
+    lang_names = {"uz": "🇺🇿 O'zbek", "ru": "🇷🇺 Rus", "en": "🇬🇧 Ingliz"}
+    bal_uzs = int(user.get("balance_uzs") or 0)
+    bal_ton = float(user.get("balance_ton") or 0.0)
+
+    return (
+        f'{tg_icon("user", "👤")} <b>Foydalanuvchi #{user_id}</b>\n\n'
+        f'{tg_icon("user", "🆔")} ID: <code>{user_id}</code>\n'
+        f'{tg_icon("user", "👤")} Username: @{user.get("username", "-")}\n'
+        f'{tg_icon("globe", "🌐")} Til: {lang_names.get(lang, lang)}\n'
+        f'{tg_icon("wallet", "💰")} Balans: <b>{bal_uzs:,} so\'m</b>\n'
+        f'{tg_icon("diamond", "💎")} TON Balans: {bal_ton:.4f} TON\n'
+        f'{tg_icon("ban", "🚫")} Bloklangan: {banned}\n'
+        f'{tg_icon("calendar", "📅")} Ro\'yxatdan: {date_str}\n'
+        f'{tg_icon("orders", "📋")} Buyurtmalar: {orders_count} ta'
+    )
 
 
 def _admin_back_kb() -> InlineKeyboardMarkup:
@@ -205,6 +254,224 @@ async def cmd_addmoney(message: Message) -> None:
         f"💰 Yangi balans: <b>{new_bal:,} so'm</b>",
         parse_mode="HTML",
     )
+
+
+@router.message(Command("take", "minus", "ayir", "sub", "yech"))
+async def cmd_takemoney(message: Message) -> None:
+    """Admin buyrug'i:
+    /take @username 20000 -> username bo'yicha pul ayirish
+    /take 8534196478 20000 -> ID bo'yicha pul ayirish
+    /minus, /ayir, /sub, /yech ham ishlaydi
+    """
+    config = BotConfig.load()
+    if not message.from_user or not await _is_admin(message.from_user.id, config):
+        return
+
+    parts = (message.text or "").split()
+    db = Database(config.database_path)
+
+    if len(parts) < 3:
+        await message.answer(
+            f"ℹ️ <b>Balansdan pul ayirish buyrug'i:</b>\n\n"
+            f"<code>/take @username 20000</code> — username bo'yicha ayirish\n"
+            f"<code>/take 8534196478 20000</code> — ID bo'yicha ayirish\n\n"
+            f"<i>Shuningdek /minus, /ayir, /yech buyruqlari ham ishlaydi.</i>",
+            parse_mode="HTML",
+        )
+        return
+
+    target_raw = parts[1]
+    try:
+        amount = float(parts[2].replace(",", "").replace(" ", ""))
+        if amount <= 0:
+            raise ValueError
+    except ValueError:
+        await message.answer("❌ Noto'g'ri summa: <code>/take @username 20000</code>", parse_mode="HTML")
+        return
+
+    target_user = await db.get_user_by_id_or_username(target_raw)
+    if not target_user:
+        await message.answer(
+            f"❌ Foydalanuvchi topilmadi: <code>{target_raw}</code>\n"
+            f"Foydalanuvchi botga kamida bir marta kirgan bo'lishi kerak.",
+            parse_mode="HTML",
+        )
+        return
+
+    target_user_id = target_user["user_id"]
+    old_bal = int(target_user.get("balance_uzs") or 0)
+    await db.update_user_balance_uzs(target_user_id, -amount)
+    updated_user = await db.get_user(target_user_id)
+    new_bal = int(updated_user.get("balance_uzs") or 0)
+    actual_deducted = max(0, old_bal - new_bal)
+
+    # Foydalanuvchiga bildirishnoma yuborish
+    try:
+        await message.bot.send_message(
+            target_user_id,
+            f"ℹ️ <b>Balansingiz o'zgartirildi</b>\n\n"
+            f"Admin tomonidan balansingizdan mablag' yechildi:\n"
+            f"➖ Ayirildi: <b>-{actual_deducted:,} so'm</b>\n"
+            f"{tg_icon('wallet', '💰')} Yangi balansingiz: <b>{new_bal:,} so'm</b>",
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        logger.warning("Foydalanuvchiga bildirishnoma yuborilmadi (ID {}): {}", target_user_id, e)
+
+    await message.answer(
+        f"✅ <b>Balansdan pul muvaffaqiyatli ayirildi!</b>\n\n"
+        f"👤 Foydalanuvchi: <code>{target_user_id}</code> (@{updated_user.get('username') or 'yoq'})\n"
+        f"➖ Ayirildi: <b>-{actual_deducted:,} so'm</b>\n"
+        f"💰 Avvalgi balans: <b>{old_bal:,} so'm</b>\n"
+        f"💰 Yangi balans: <b>{new_bal:,} so'm</b>",
+        parse_mode="HTML",
+    )
+
+
+@router.message(Command("zero", "clear", "nol"))
+async def cmd_zeromoney(message: Message) -> None:
+    """Admin buyrug'i:
+    /zero @username -> bitta user balansini 0 qilish
+    /zero 8534196478 -> ID bo'yicha 0 qilish
+    """
+    config = BotConfig.load()
+    if not message.from_user or not await _is_admin(message.from_user.id, config):
+        return
+
+    parts = (message.text or "").split()
+    db = Database(config.database_path)
+
+    if len(parts) < 2:
+        await message.answer(
+            f"ℹ️ <b>Balansni 0 qilish buyrug'i:</b>\n\n"
+            f"<code>/zero @username</code> — username bo'yicha 0 qilish\n"
+            f"<code>/zero 8534196478</code> — ID bo'yicha 0 qilish\n\n"
+            f"<i>Barcha userlarni 0 qilish uchun: <code>/resetall</code></i>",
+            parse_mode="HTML",
+        )
+        return
+
+    target_raw = parts[1]
+    target_user = await db.get_user_by_id_or_username(target_raw)
+    if not target_user:
+        await message.answer(
+            f"❌ Foydalanuvchi topilmadi: <code>{target_raw}</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    target_user_id = target_user["user_id"]
+    old_bal = int(target_user.get("balance_uzs") or 0)
+    await db.set_user_balance_uzs(target_user_id, 0.0)
+
+    try:
+        await message.bot.send_message(
+            target_user_id,
+            f"ℹ️ <b>Balansingiz 0 ga tenglashtirildi.</b>\n"
+            f"{tg_icon('wallet', '💰')} Yangi balansingiz: <b>0 so'm</b>",
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        logger.warning("Foydalanuvchiga bildirishnoma yuborilmadi: {}", e)
+
+    await message.answer(
+        f"✅ <b>Foydalanuvchi balansi 0 qilindi!</b>\n\n"
+        f"👤 User: <code>{target_user_id}</code> (@{target_user.get('username') or 'yoq'})\n"
+        f"💰 Avvalgi balans: <b>{old_bal:,} so'm</b>\n"
+        f"💰 Yangi balans: <b>0 so'm</b>",
+        parse_mode="HTML",
+    )
+
+
+@router.message(Command("resetall", "zeroall"))
+async def cmd_resetall(message: Message) -> None:
+    """Admin buyrug'i: Admindan boshqa barcha foydalanuvchilar balansini 0 qilish."""
+    config = BotConfig.load()
+    if not message.from_user or not await _is_admin(message.from_user.id, config):
+        return
+
+    db = Database(config.database_path)
+    count = await db.reset_all_balances_except(message.from_user.id)
+    await message.answer(
+        f"✅ <b>Barcha foydalanuvchilar balansi 0 qilindi!</b>\n\n"
+        f"🔄 Nollangan foydalanuvchilar soni: <b>{count} ta</b>\n"
+        f"👑 Asosiy admin (<code>{message.from_user.id}</code>) balansi o'zgarishsiz qoldirildi.",
+        parse_mode="HTML",
+    )
+
+
+@router.message(Command("balances", "balanslar", "users"))
+async def cmd_list_balances(message: Message) -> None:
+    """Admin buyrug'i: barcha foydalanuvchilar balanslarini ro'yxat ko'rinishida chiqarish."""
+    config = BotConfig.load()
+    if not message.from_user or not await _is_admin(message.from_user.id, config):
+        return
+
+    db = Database(config.database_path)
+    users = await db.get_users_with_balance(limit=30)
+    if not users:
+        await message.answer(
+            "💰 <b>Balanslar:</b>\n\nHozircha balansi mavjud bo'lgan foydalanuvchilar yo'q.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="👥 Barcha userlar", callback_data="adm:balance_list_all")],
+                [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
+            ]),
+            parse_mode="HTML",
+        )
+        return
+
+    total_uzs = sum(float(u.get("balance_uzs") or 0.0) for u in users)
+    lines = ["💰 <b>Foydalanuvchilar balanslari:</b>\n"]
+    inline_keyboard = []
+
+    for idx, u in enumerate(users[:20], 1):
+        uid = int(u["user_id"])
+        uname = f"@{u['username']}" if u.get("username") else f"ID:{uid}"
+        bal = int(u.get("balance_uzs") or 0)
+        lines.append(f"{idx}. <b>{uname}</b> (<code>{uid}</code>) — <b>{bal:,} so'm</b>")
+        btn_text = f"{idx}. {uname} — {bal:,} so'm"
+        inline_keyboard.append([
+            InlineKeyboardButton(text=btn_text[:35], callback_data=f"adm:view_user:{uid}")
+        ])
+
+    lines.append(f"\n📊 Ko'rsatilganlar jami: <b>{int(total_uzs):,} so'm</b> ({len(users)} ta user)")
+    lines.append("\n<i>User ustiga bosib pul qo'shish, ayirish yoki 0 qilish mumkin.</i>")
+
+    inline_keyboard.append([
+        InlineKeyboardButton(text="👥 Barcha foydalanuvchilar", callback_data="adm:balance_list_all"),
+    ])
+    inline_keyboard.append([
+        InlineKeyboardButton(text="➕ Balans to'ldirish", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["wallet"]),
+        InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"]),
+    ])
+
+    await message.answer("\n".join(lines), reply_markup=InlineKeyboardMarkup(inline_keyboard=inline_keyboard), parse_mode="HTML")
+
+
+@router.message(Command("user", "lookup"))
+async def cmd_user_lookup(message: Message) -> None:
+    """Admin buyrug'i: foydalanuvchi kartasini ochish."""
+    config = BotConfig.load()
+    if not message.from_user or not await _is_admin(message.from_user.id, config):
+        return
+
+    parts = (message.text or "").split()
+    if len(parts) < 2:
+        await message.answer("ℹ️ Misol: <code>/user @username</code> yoki <code>/user 8534196478</code>", parse_mode="HTML")
+        return
+
+    target_raw = parts[1]
+    db = Database(config.database_path)
+    user = await db.get_user_by_id_or_username(target_raw)
+    if not user:
+        await message.answer(f"❌ Foydalanuvchi topilmadi: <code>{target_raw}</code>", parse_mode="HTML")
+        return
+
+    user_id = int(user["user_id"])
+    orders = await db.get_user_orders(user_id, limit=100)
+    text = _render_user_card(user, len(orders))
+    kb = _user_card_kb(user_id, bool(user.get("is_banned")))
+    await message.answer(text, reply_markup=kb, parse_mode="HTML")
 
 
 # ─── Main panel callback ──────────────────────────────────────────────────────
@@ -628,11 +895,15 @@ async def admin_users(callback: CallbackQuery, state: FSMContext) -> None:
     count = await db.get_user_count()
 
     await state.set_state(AdminStates.waiting_user_id)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💰 Balanslar ro'yxati", callback_data="adm:balance_list", icon_custom_emoji_id=ICONS["wallet"])],
+        [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
+    ])
     await callback.message.edit_text(
         f'{tg_icon("users", "👥")} <b>Foydalanuvchilar</b>\n\nJami: <b>{count}</b> ta\n\n'
         f"Foydalanuvchining <b>Telegram ID</b> yoki <b>@username</b>ini kiriting:\n\n"
         f"<i>Misol: <code>8534196478</code> yoki <code>@sxkmvv</code></i>",
-        reply_markup=_admin_back_kb(),
+        reply_markup=kb,
         parse_mode="HTML",
     )
     await callback.answer()
@@ -658,42 +929,33 @@ async def admin_user_lookup(message: Message, state: FSMContext) -> None:
 
     user_id = int(user["user_id"])
     orders = await db.get_user_orders(user_id, limit=100)
-    orders_count = len(orders)
-    date_str = str(user.get("created_at", ""))[:10]
-    banned = "Ha" if user.get("is_banned") else "Yo'q"
-    lang = user.get("lang", "uz")
-    lang_names = {"uz": "🇺🇿 O'zbek", "ru": "🇷🇺 Rus", "en": "🇬🇧 Ingliz"}
-    bal_uzs = int(user.get("balance_uzs") or 0)
-    bal_ton = float(user.get("balance_ton") or 0.0)
-
-    text = (
-        f'{tg_icon("user", "👤")} <b>Foydalanuvchi #{user_id}</b>\n\n'
-        f'{tg_icon("user", "🆔")} ID: <code>{user_id}</code>\n'
-        f'{tg_icon("user", "👤")} Username: @{user.get("username", "-")}\n'
-        f'{tg_icon("globe", "🌐")} Til: {lang_names.get(lang, lang)}\n'
-        f'{tg_icon("wallet", "💰")} Balans: <b>{bal_uzs:,} so\'m</b>\n'
-        f'{tg_icon("diamond", "💎")} TON Balans: {bal_ton:.4f} TON\n'
-        f'{tg_icon("ban", "🚫")} Bloklangan: {banned}\n'
-        f'{tg_icon("calendar", "📅")} Ro\'yxatdan: {date_str}\n'
-        f'{tg_icon("orders", "📋")} Buyurtmalar: {orders_count} ta'
-    )
-
-    ban_btn = (
-        InlineKeyboardButton(text="Blokdan chiqarish", callback_data=f"adm:unban:{user_id}", icon_custom_emoji_id=ICONS["check"])
-        if user.get("is_banned")
-        else InlineKeyboardButton(text="Bloklash", callback_data=f"adm:ban:{user_id}", icon_custom_emoji_id=ICONS["ban"])
-    )
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="Balans qo'shish", callback_data=f"adm:add_bal:{user_id}", icon_custom_emoji_id=ICONS["wallet"]),
-            InlineKeyboardButton(text="Balansni 0 qilish", callback_data=f"adm:zero_bal:{user_id}", icon_custom_emoji_id=ICONS["trash"]),
-        ],
-        [ban_btn],
-        [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
-    ])
+    text = _render_user_card(user, len(orders))
+    kb = _user_card_kb(user_id, bool(user.get("is_banned")))
 
     await state.clear()
     await message.answer(text, reply_markup=kb, parse_mode="HTML")
+
+
+@router.callback_query(F.data.startswith("adm:view_user:"))
+async def admin_view_user(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    config = BotConfig.load()
+    if not callback.from_user or not await _is_admin(callback.from_user.id, config):
+        await callback.answer()
+        return
+
+    user_id = int(callback.data.split(":", 2)[2])
+    db = Database(config.database_path)
+    user = await db.get_user(user_id)
+    if not user:
+        await callback.answer("Foydalanuvchi topilmadi!", show_alert=True)
+        return
+
+    orders = await db.get_user_orders(user_id, limit=100)
+    text = _render_user_card(user, len(orders))
+    kb = _user_card_kb(user_id, bool(user.get("is_banned")))
+    await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("adm:ban:"))
@@ -707,16 +969,7 @@ async def admin_ban_user(callback: CallbackQuery) -> None:
     db = Database(config.database_path)
     await db.ban_user(user_id)
     await callback.answer("🚫 Foydalanuvchi bloklandi.")
-    await callback.message.edit_reply_markup(
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="Balans qo'shish", callback_data=f"adm:add_bal:{user_id}", icon_custom_emoji_id=ICONS["wallet"]),
-                InlineKeyboardButton(text="Balansni 0 qilish", callback_data=f"adm:zero_bal:{user_id}", icon_custom_emoji_id=ICONS["trash"]),
-            ],
-            [InlineKeyboardButton(text="Blokdan chiqarish", callback_data=f"adm:unban:{user_id}", icon_custom_emoji_id=ICONS["check"])],
-            [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
-        ])
-    )
+    await callback.message.edit_reply_markup(reply_markup=_user_card_kb(user_id, is_banned=True))
 
 
 @router.callback_query(F.data.startswith("adm:unban:"))
@@ -730,19 +983,76 @@ async def admin_unban_user(callback: CallbackQuery) -> None:
     db = Database(config.database_path)
     await db.unban_user(user_id)
     await callback.answer("✅ Blokdan chiqarildi.")
-    await callback.message.edit_reply_markup(
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="Balans qo'shish", callback_data=f"adm:add_bal:{user_id}", icon_custom_emoji_id=ICONS["wallet"]),
-                InlineKeyboardButton(text="Balansni 0 qilish", callback_data=f"adm:zero_bal:{user_id}", icon_custom_emoji_id=ICONS["trash"]),
-            ],
-            [InlineKeyboardButton(text="Bloklash", callback_data=f"adm:ban:{user_id}", icon_custom_emoji_id=ICONS["ban"])],
+    await callback.message.edit_reply_markup(reply_markup=_user_card_kb(user_id, is_banned=False))
+
+
+# ─── Balance Management (List / Give / Take / Zero) ───────────────────────────
+
+@router.callback_query(F.data.in_({"adm:balance_list", "adm:balance_list_all"}))
+async def admin_balance_list(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    config = BotConfig.load()
+    if not callback.from_user or not await _is_admin(callback.from_user.id, config):
+        await callback.answer()
+        return
+
+    db = Database(config.database_path)
+    show_all = callback.data == "adm:balance_list_all"
+
+    if show_all:
+        users = await db.get_all_users_ordered(limit=30)
+        title = "👥 <b>Barcha foydalanuvchilar (balans tartibida):</b>\n\n"
+    else:
+        users = await db.get_users_with_balance(limit=30)
+        title = "💰 <b>Balansida mablag' bor foydalanuvchilar:</b>\n\n"
+
+    if not users:
+        text = title + "<i>Hozircha balansi mavjud bo'lgan foydalanuvchilar yo'q.</i>"
+        toggle_btn = (
+            InlineKeyboardButton(text="💰 Faqat balansi borlar", callback_data="adm:balance_list")
+            if show_all
+            else InlineKeyboardButton(text="👥 Barcha foydalanuvchilar", callback_data="adm:balance_list_all")
+        )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [toggle_btn],
+            [InlineKeyboardButton(text="➕ Balans to'ldirish", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["wallet"])],
             [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
         ])
+        await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+        await callback.answer()
+        return
+
+    total_uzs = sum(float(u.get("balance_uzs") or 0.0) for u in users)
+    lines = [title]
+    inline_keyboard = []
+
+    for idx, u in enumerate(users[:20], 1):
+        uid = int(u["user_id"])
+        uname = f"@{u['username']}" if u.get("username") else f"ID:{uid}"
+        bal = int(u.get("balance_uzs") or 0)
+        lines.append(f"{idx}. <b>{uname}</b> (<code>{uid}</code>) — <b>{bal:,} so'm</b>")
+        btn_text = f"{idx}. {uname} — {bal:,} so'm"
+        inline_keyboard.append([
+            InlineKeyboardButton(text=btn_text[:35], callback_data=f"adm:view_user:{uid}")
+        ])
+
+    lines.append(f"\n📊 Ko'rsatilganlar jami: <b>{int(total_uzs):,} so'm</b> ({len(users)} ta user)")
+    lines.append("\n<i>Foydalanuvchi ustiga bosib pul qo'shish, ayirish yoki 0 qilish mumkin.</i>")
+
+    toggle_btn = (
+        InlineKeyboardButton(text="💰 Faqat balansi borlar", callback_data="adm:balance_list")
+        if show_all
+        else InlineKeyboardButton(text="👥 Barcha foydalanuvchilar", callback_data="adm:balance_list_all")
     )
+    inline_keyboard.append([toggle_btn])
+    inline_keyboard.append([
+        InlineKeyboardButton(text="➕ Balans to'ldirish", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["wallet"]),
+        InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"]),
+    ])
 
+    await callback.message.edit_text("\n".join(lines), reply_markup=InlineKeyboardMarkup(inline_keyboard=inline_keyboard), parse_mode="HTML")
+    await callback.answer()
 
-# ─── Balance Management (Give / Add / Zero) ───────────────────────────────────
 
 @router.callback_query(F.data == "adm:give_balance")
 async def admin_give_balance_prompt(callback: CallbackQuery, state: FSMContext) -> None:
@@ -820,7 +1130,7 @@ async def admin_add_balance_btn(callback: CallbackQuery, state: FSMContext) -> N
         f'Qo\'shiladigan <b>summani (so\'mda)</b> kiriting:\n'
         f'<i>Masalan: <code>50000</code> yoki <code>100000</code></i>',
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Bekor qilish", callback_data="adm:main", icon_custom_emoji_id=ICONS["cancel"])]
+            [InlineKeyboardButton(text="Bekor qilish", callback_data=f"adm:view_user:{user_id}", icon_custom_emoji_id=ICONS["cancel"])]
         ]),
         parse_mode="HTML",
     )
@@ -869,12 +1179,109 @@ async def admin_process_give_balance_amount(message: Message, state: FSMContext)
     except Exception as e:
         logger.warning("Foydalanuvchiga bildirishnoma yuborilmadi (ID {}): {}", target_user_id, e)
 
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👤 User kartasi", callback_data=f"adm:view_user:{target_user_id}")],
+        [InlineKeyboardButton(text="💰 Balanslar ro'yxati", callback_data="adm:balance_list")],
+        [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
+    ])
     await message.answer(
         f"{tg_icon('check', '✅')} <b>Balans muvaffaqiyatli to'ldirildi!</b>\n\n"
         f"👤 Foydalanuvchi: <code>{target_user_id}</code> (@{user.get('username') or 'yoq'})\n"
         f"➕ Qo'shildi: <b>+{int(amount):,} so'm</b>\n"
         f"💰 Yangi balans: <b>{new_bal:,} so'm</b>",
-        reply_markup=_admin_back_kb(),
+        reply_markup=kb,
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data.startswith("adm:take_bal:"))
+async def admin_take_balance_btn(callback: CallbackQuery, state: FSMContext) -> None:
+    config = BotConfig.load()
+    if not callback.from_user or not await _is_admin(callback.from_user.id, config):
+        await callback.answer()
+        return
+
+    user_id = int(callback.data.split(":", 2)[2])
+    db = Database(config.database_path)
+    user = await db.get_user(user_id)
+    if not user:
+        await callback.answer("Foydalanuvchi topilmadi!", show_alert=True)
+        return
+
+    await state.update_data(target_user_id=user_id, target_username=user.get("username"))
+    await state.set_state(AdminStates.waiting_take_balance_amount)
+    bal_uzs = int(user.get("balance_uzs") or 0)
+    await callback.message.edit_text(
+        f'{tg_icon("money", "💸")} <b>Balansdan pul ayirish (yechish)</b>\n\n'
+        f'👤 Foydalanuvchi: <b>@{user.get("username") or "yo\'q"}</b> (<code>{user_id}</code>)\n'
+        f'💰 Hozirgi balans: <b>{bal_uzs:,} so\'m</b>\n\n'
+        f'Ayirmoqchi bo\'lgan <b>summani (so\'mda)</b> kiriting:\n'
+        f'<i>Masalan: <code>20000</code> yoki <code>50000</code></i>',
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Bekor qilish", callback_data=f"adm:view_user:{user_id}", icon_custom_emoji_id=ICONS["cancel"])]
+        ]),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.message(AdminStates.waiting_take_balance_amount)
+async def admin_process_take_balance_amount(message: Message, state: FSMContext) -> None:
+    config = BotConfig.load()
+    if not message.from_user or not await _is_admin(message.from_user.id, config):
+        return
+
+    raw = (message.text or "").strip().replace(" ", "").replace(",", "")
+    try:
+        amount = float(raw)
+        if amount <= 0:
+            raise ValueError
+    except ValueError:
+        await message.answer("❌ Noto'g'ri summa! Musbat raqam kiriting (masalan: <code>20000</code>):", parse_mode="HTML")
+        return
+
+    data = await state.get_data()
+    target_user_id = data.get("target_user_id")
+    if not target_user_id:
+        await state.clear()
+        await message.answer("❌ Foydalanuvchi topilmadi. Qaytadan urinib ko'ring.", reply_markup=_admin_back_kb())
+        return
+
+    db = Database(config.database_path)
+    old_user = await db.get_user(target_user_id)
+    old_bal = int(old_user.get("balance_uzs") or 0) if old_user else 0
+
+    await db.update_user_balance_uzs(target_user_id, -amount)
+    user = await db.get_user(target_user_id)
+    new_bal = int(user.get("balance_uzs") or 0) if user else 0
+    actual_deducted = max(0, old_bal - new_bal)
+    await state.clear()
+
+    # Foydalanuvchiga xabar yuborish
+    try:
+        await message.bot.send_message(
+            target_user_id,
+            f"ℹ️ <b>Balansingiz o'zgartirildi</b>\n\n"
+            f"Admin tomonidan balansingizdan mablag' yechildi:\n"
+            f"➖ Ayirildi: <b>-{actual_deducted:,} so'm</b>\n"
+            f"{tg_icon('wallet', '💰')} Yangi balansingiz: <b>{new_bal:,} so'm</b>",
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        logger.warning("Foydalanuvchiga bildirishnoma yuborilmadi (ID {}): {}", target_user_id, e)
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👤 User kartasi", callback_data=f"adm:view_user:{target_user_id}")],
+        [InlineKeyboardButton(text="💰 Balanslar ro'yxati", callback_data="adm:balance_list")],
+        [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
+    ])
+    await message.answer(
+        f"{tg_icon('check', '✅')} <b>Balansdan pul muvaffaqiyatli ayirildi!</b>\n\n"
+        f"👤 Foydalanuvchi: <code>{target_user_id}</code> (@{user.get('username') or 'yoq'})\n"
+        f"➖ Yechildi: <b>-{actual_deducted:,} so'm</b>\n"
+        f"💰 Avvalgi balans: <b>{old_bal:,} so'm</b>\n"
+        f"💰 Yangi balans: <b>{new_bal:,} so'm</b>",
+        reply_markup=kb,
         parse_mode="HTML",
     )
 
@@ -888,43 +1295,29 @@ async def admin_zero_balance_btn(callback: CallbackQuery) -> None:
 
     user_id = int(callback.data.split(":", 2)[2])
     db = Database(config.database_path)
+    old_user = await db.get_user(user_id)
+    old_bal = int(old_user.get("balance_uzs") or 0) if old_user else 0
+
     await db.set_user_balance_uzs(user_id, 0.0)
     await callback.answer("✅ Foydalanuvchi balansi 0 qilindi!", show_alert=True)
+
+    # Foydalanuvchiga bildirishnoma yuborish
+    try:
+        await callback.bot.send_message(
+            user_id,
+            f"ℹ️ <b>Balansingiz 0 ga tenglashtirildi.</b>\n"
+            f"{tg_icon('wallet', '💰')} Yangi balansingiz: <b>0 so'm</b>",
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        logger.warning("Foydalanuvchiga bildirishnoma yuborilmadi: {}", e)
 
     user = await db.get_user(user_id)
     if not user:
         return
     orders = await db.get_user_orders(user_id, limit=100)
-    orders_count = len(orders)
-    date_str = str(user.get("created_at", ""))[:10]
-    banned = "Ha" if user.get("is_banned") else "Yo'q"
-    lang = user.get("lang", "uz")
-    lang_names = {"uz": "🇺🇿 O'zbek", "ru": "🇷🇺 Rus", "en": "🇬🇧 Ingliz"}
-
-    text = (
-        f'{tg_icon("user", "👤")} <b>Foydalanuvchi #{user_id}</b>\n\n'
-        f'{tg_icon("user", "🆔")} ID: <code>{user_id}</code>\n'
-        f'{tg_icon("user", "👤")} Username: @{user.get("username", "-")}\n'
-        f'{tg_icon("globe", "🌐")} Til: {lang_names.get(lang, lang)}\n'
-        f'{tg_icon("wallet", "💰")} Balans: <b>0 so\'m</b>\n'
-        f'{tg_icon("diamond", "💎")} TON Balans: {float(user.get("balance_ton", 0)):.4f} TON\n'
-        f'{tg_icon("ban", "🚫")} Bloklangan: {banned}\n'
-        f'{tg_icon("calendar", "📅")} Ro\'yxatdan: {date_str}\n'
-        f'{tg_icon("orders", "📋")} Buyurtmalar: {orders_count} ta'
-    )
-    ban_btn = (
-        InlineKeyboardButton(text="Blokdan chiqarish", callback_data=f"adm:unban:{user_id}", icon_custom_emoji_id=ICONS["check"])
-        if user.get("is_banned")
-        else InlineKeyboardButton(text="Bloklash", callback_data=f"adm:ban:{user_id}", icon_custom_emoji_id=ICONS["ban"])
-    )
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="Balans qo'shish", callback_data=f"adm:add_bal:{user_id}", icon_custom_emoji_id=ICONS["wallet"]),
-            InlineKeyboardButton(text="Balansni 0 qilish", callback_data=f"adm:zero_bal:{user_id}", icon_custom_emoji_id=ICONS["trash"]),
-        ],
-        [ban_btn],
-        [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
-    ])
+    text = _render_user_card(user, len(orders))
+    kb = _user_card_kb(user_id, bool(user.get("is_banned")))
     await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
 
 

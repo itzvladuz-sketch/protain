@@ -313,10 +313,24 @@ class Database:
     async def update_user_balance_uzs(self, user_id: int, delta_uzs: float) -> None:
         async with self.connect() as db:
             await db.execute(
-                "UPDATE users SET balance_uzs = COALESCE(balance_uzs, 0.0) + ? WHERE user_id = ?",
+                "UPDATE users SET balance_uzs = MAX(0.0, COALESCE(balance_uzs, 0.0) + ?) WHERE user_id = ?",
                 (delta_uzs, user_id),
             )
             await db.commit()
+
+    async def get_users_with_balance(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Return users with positive balance (UZS or TON), highest balance first."""
+        return await self._fetch(
+            "SELECT * FROM users WHERE balance_uzs > 0 OR balance_ton > 0 ORDER BY balance_uzs DESC, id DESC LIMIT ?",
+            (limit,),
+        )
+
+    async def get_all_users_ordered(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Return all users ordered by balance DESC, then newest."""
+        return await self._fetch(
+            "SELECT * FROM users ORDER BY balance_uzs DESC, id DESC LIMIT ?",
+            (limit,),
+        )
 
     async def ban_user(self, user_id: int) -> None:
         async with self.connect() as db:
