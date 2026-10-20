@@ -52,72 +52,72 @@ TEXTS: dict = {
         '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Qabul qiluvchi: <b>@{recipient}</b>\n\n'
         "Kerakli miqdorni tanlang yoki <b>«Boshqa miqdor»</b> tugmasini bosing:"
     ),
-    "no_username_set": "⚠️ Sizda @username yo'q. Qabul qiluvchi username'ini yozing:",
-    "checking_username": "🔍 Tekshirilmoqda...",
-    "username_invalid": "❌ Username topilmadi. Qayta kiriting:",
+    "no_username_set": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> Sizda @username yo\'q. Qabul qiluvchi username\'ini yozing:',
+    "checking_username": '<tg-emoji emoji-id="5879618294845584992">🔍</tg-emoji> Tekshirilmoqda...',
+    "username_invalid": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Username topilmadi. Qayta kiriting:',
 
     # Buyurtma
     "order_summary_stars": (
-        "📋 <b>Buyurtma:</b>\n\n"
-        "⭐ <b>{amount} Stars</b> ➔ @{recipient}\n"
-        "💰 Narxi: <b>{price}</b>\n"
-        "👛 Balansingiz: <b>{balance}</b>\n"
+        '<tg-emoji emoji-id="5886330010054168711">📋</tg-emoji> <b>Buyurtma:</b>\n\n'
+        '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> <b>{amount} Stars</b> ➔ @{recipient}\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Narxi: <b>{price}</b>\n'
+        '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Balansingiz: <b>{balance}</b>\n'
         "{discount_line}"
     ),
     "order_summary_premium": (
-        "📋 <b>Buyurtma:</b>\n\n"
-        "👑 <b>Premium ({duration})</b> ➔ @{recipient}\n"
-        "💰 Narxi: <b>{price}</b>\n"
-        "👛 Balansingiz: <b>{balance}</b>\n"
+        '<tg-emoji emoji-id="5886330010054168711">📋</tg-emoji> <b>Buyurtma:</b>\n\n'
+        '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> <b>Premium ({duration})</b> ➔ @{recipient}\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Narxi: <b>{price}</b>\n'
+        '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Balansingiz: <b>{balance}</b>\n'
         "{discount_line}"
     ),
     "order_summary_gift": (
-        "📋 <b>Buyurtma:</b>\n\n"
-        "🎁 <b>{gift_name} ({amount} Stars)</b> ➔ @{recipient}\n"
-        "💰 Narxi: <b>{price}</b>\n"
-        "👛 Balansingiz: <b>{balance}</b>\n"
+        '<tg-emoji emoji-id="5886330010054168711">📋</tg-emoji> <b>Buyurtma:</b>\n\n'
+        '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> <b>{gift_name} ({amount} Stars)</b> ➔ @{recipient}\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Narxi: <b>{price}</b>\n'
+        '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Balansingiz: <b>{balance}</b>\n'
         "{discount_line}"
     ),
-    "discount_line": "🎉 Chegirma: <b>-{discount}%</b>\n",
+    "discount_line": '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> Chegirma: <b>-{discount}%</b>\n',
 
     # Premium
     "premium_menu": (
-        "👑 <b>Telegram Premium</b>\n\n"
+        '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> <b>Telegram Premium</b>\n\n'
         "Muddati tanlang:"
     ),
 
     # Gift
     "gift_menu": (
-        "🎁 <b>Telegram Gift</b>\n\n"
+        '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> <b>Telegram Gift</b>\n\n'
         "Sovg'ani tanlang:"
     ),
 
     # To'lov
     "humo_payment_instructions": (
-        "💳 <b>Humo to'lov:</b>\n\n"
-        "💳 Karta:\n<code>{card_number}</code>\n"
-        "👤 Egasi: <b>{card_holder}</b>\n\n"
-        "💰 To'lov summasi:\n<code>{amount:,}</code> so'm\n\n"
-        "⏱ To'lov muddati: <b>30 daqiqa</b>\n\n"
-        "⚠️ <b>DIQQAT:</b> To'lov avtomatik tarzda 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount:,}</code> so'm o'tkazing!"
+        '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Humo to\'lov:</b>\n\n'
+        '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> Karta:\n<code>{card_number}</code>\n'
+        '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Egasi: <b>{card_holder}</b>\n\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> To\'lov summasi:\n<code>{amount:,}</code> so\'m\n\n'
+        '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> To\'lov muddati: <b>30 daqiqa</b>\n\n'
+        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>DIQQAT:</b> To\'lov avtomatik tarzda 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount:,}</code> so\'m o\'tkazing!'
     ),
     "click_payment_instructions": (
-        "🔵 <b>Click (Uzcard) to'lov:</b>\n\n"
-        "💳 Karta:\n<code>{card_number}</code>\n"
-        "👤 Egasi: <b>{card_holder}</b>\n\n"
-        "💰 To'lov summasi:\n<code>{amount:,}</code> so'm\n\n"
-        "⏱ To'lov muddati: <b>30 daqiqa</b>\n\n"
-        "⚠️ <b>DIQQAT:</b> To'lov avtomatik tarzda 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount:,}</code> so'm o'tkazing!\n\n"
+        '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Click (Uzcard) to\'lov:</b>\n\n'
+        '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> Karta:\n<code>{card_number}</code>\n'
+        '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Egasi: <b>{card_holder}</b>\n\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> To\'lov summasi:\n<code>{amount:,}</code> so\'m\n\n'
+        '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> To\'lov muddati: <b>30 daqiqa</b>\n\n'
+        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>DIQQAT:</b> To\'lov avtomatik tarzda 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount:,}</code> so\'m o\'tkazing!\n\n'
         "<i>To'lovni @clickuz boti yoki Click ilovasi orqali amalga oshirishingiz mumkin.</i>"
     ),
-    "payment_not_found": "⏳ To'lov hali topilmadi. Pul o'tkazgan bo'lsangiz, 1-2 daqiqa kuting.",
-    "payment_found": "✅ To'lov qabul qilindi!",
+    "payment_not_found": '<tg-emoji emoji-id="5778605968208170641">⏳</tg-emoji> To\'lov hali topilmadi. Pul o\'tkazgan bo\'lsangiz, 1-2 daqiqa kuting.',
+    "payment_found": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> To\'lov qabul qilindi!',
     "order_completed": (
         '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Bajarildi!</b>\n\n'
         '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> <b>{amount}</b> ➔ @{recipient} ga yetkazildi.'
     ),
-    "order_failed": "❌ Xatolik yuz berdi. @{support} ga murojaat qiling.",
-    "order_expired": "⏱ Buyurtma #{id} muddati tugadi (to'lov qilinmadi).",
+    "order_failed": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Xatolik yuz berdi. @{support} ga murojaat qiling.',
+    "order_expired": '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Buyurtma #{id} muddati tugadi (to\'lov qilinmadi).',
 
     # Balans
     "balance_info": (
@@ -130,14 +130,14 @@ TEXTS: dict = {
     "btn_pay_click": "Click orqali to'lash",
     "btn_pay_balance": "Balansdan to'lash",
     "balance_topup_menu": '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Balansni to\'ldirish (Humo / Click):</b>\n\nSummani tanlang yoki so\'mda yozing (masalan: 50000):',
-    "balance_topup_min_error": "⚠️ Minimal summa: {min:,} so'm",
+    "balance_topup_min_error": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> Minimal summa: {min:,} so\'m',
     "balance_topup_uzs_completed": (
         '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Balans to\'ldirildi!</b>\n\n'
         '+<b>{amount:,} so\'m</b> hisobingizga qo\'shildi.\n'
         "Joriy balans: <b>{new_balance:,} so'm</b>"
     ),
-    "paid_from_balance": "✅ Balansdan to'landi! Buyurtma bajarilmoqda...",
-    "insufficient_balance": "⚠️ Balansda mablag' yetarli emas.",
+    "paid_from_balance": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Balansdan to\'landi! Buyurtma bajarilmoqda...',
+    "insufficient_balance": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> Balansda mablag\' yetarli emas.',
 
     # Yordam
     "help_text": (
@@ -148,7 +148,7 @@ TEXTS: dict = {
 
     # Buyurtmalar tarixi
     "my_orders": '<tg-emoji emoji-id="5886330010054168711">📋</tg-emoji> <b>Buyurtmalaringiz:</b>',
-    "no_orders": "📭 Buyurtmalar yo'q.",
+    "no_orders": '<tg-emoji emoji-id="5924720918826848520">📦</tg-emoji> Buyurtmalar yo\'q.',
     "order_item": "#{id} | {type} ➔ @{recipient} | {amount} | {status_emoji} {status}",
 
     "status_pending":    "Kutilmoqda",
@@ -158,14 +158,14 @@ TEXTS: dict = {
     "status_failed":     "Xatolik",
     "status_cancelled":  "Bekor",
 
-    "type_stars":   "⭐ Stars",
-    "type_premium": "👑 Premium",
-    "type_gift":    "🎁 Gift",
+    "type_stars":   '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> Stars',
+    "type_premium": '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> Premium',
+    "type_gift":    '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> Gift',
 
-    "language_changed": "✅ Til o'zgartirildi!",
-    "error_general": "❌ Xatolik. Qaytadan urinib ko'ring.",
-    "error_try_again": "❌ Qayta urinib ko'ring.",
-    "error_banned": "🚫 Siz bloklangansiz. @{support}",
+    "language_changed": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Til o\'zgartirildi!',
+    "error_general": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Xatolik. Qaytadan urinib ko\'ring.',
+    "error_try_again": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Qayta urinib ko\'ring.',
+    "error_banned": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> Siz bloklangansiz. @{support}',
 
     # Admin panel
     "admin_service_name_stars":      "⭐ Stars ($ / dona)",
@@ -188,12 +188,12 @@ TEXTS: dict = {
         '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Qabul qilish: 5 daqiqa ichida'
     ),
     "admin_order_approved": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Buyurtma #{order_id} tasdiqlandi va yetkazildi!',
-    "admin_order_already_processed": "⚠️ Buyurtma #{order_id} allaqachon bajarilgan yoki bekor bo'lgan.",
+    "admin_order_already_processed": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> Buyurtma #{order_id} allaqachon bajarilgan yoki bekor bo\'lgan.',
 
     # Referal & Bepul Sovg'a
     "referral_info": (
         '<tg-emoji emoji-id="5915556996215476302">👥</tg-emoji> <b>Referal dasturi</b>\n\n'
-        "🔗 <b>Sizning taklif havolangiz:</b>\n"
+        '<tg-emoji emoji-id="5877465816030515018">🔗</tg-emoji> <b>Sizning taklif havolangiz:</b>\n'
         "<code>{ref_link}</code>\n\n"
         '<tg-emoji emoji-id="5915556996215476302">👥</tg-emoji> Taklif qilingan do\'stlar: <b>{ref_count}</b> ta\n'
         '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> To\'plangan Stars: <b>{ref_stars}</b> ⭐\n\n'
@@ -203,14 +203,14 @@ TEXTS: dict = {
     "btn_claim_gift": "Sovg'ani olish (Min: 16 ⭐)",
     "btn_share_ref": "Do'stlarga ulashish",
     "referral_share_text": "⭐ Telegram Stars, Premium va Sovg'alar xarid qilish uchun eng qulay bot! Ushbu havola orqali kiring:\n{ref_link}",
-    "referral_reward_notice": "🎉 <b>Yangi do'st qo'shildi!</b>\nSizning taklif havolangiz orqali yangi do'stingiz botga kirdi. Sizga <b>+2 Stars</b> berildi! ⭐\n\nJami Stars: <b>{total_stars} ⭐</b>",
-    "claim_min_stars_error": "⚠️ <b>Stars yetarli emas!</b>\nSovg'a olish uchun kamida <b>16 Stars</b> to'plashingiz kerak.\n\nSizda: <b>{current} Stars</b> bor (yana <b>{needed} Stars</b> / {friends_needed} ta do'st kerak).",
-    "claim_enter_recipient": "🎁 <b>Sovg'ani qabul qiluvchi:</b>\nTelegram username'ingizni yozing yoki <b>«O'zimga»</b> tugmasini bosing:",
-    "claim_success": "🎉 <b>Sovg'a so'rovingiz qabul qilindi!</b>\n\n🧸 <b>{gift_name}</b> sovg'asi tez orada @{recipient} ga yetkazib beriladi!\n\n<i>Qolgan Stars balansingiz: {remaining} ⭐</i>",
+    "referral_reward_notice": '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Yangi do\'st qo\'shildi!</b>\nSizning taklif havolangiz orqali yangi do\'stingiz botga kirdi. Sizga <b>+2 Stars</b> berildi! <tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji>\n\nJami Stars: <b>{total_stars}</b> <tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji>',
+    "claim_min_stars_error": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> <b>Stars yetarli emas!</b>\nSovg\'a olish uchun kamida <b>16 Stars</b> to\'plashingiz kerak.\n\nSizda: <b>{current} Stars</b> bor (yana <b>{needed} Stars</b> / {friends_needed} ta do\'st kerak).',
+    "claim_enter_recipient": '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> <b>Sovg\'ani qabul qiluvchi:</b>\nTelegram username\'ingizni yozing yoki <b>«O\'zimga»</b> tugmasini bosing:',
+    "claim_success": '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Sovg\'a so\'rovingiz qabul qilindi!</b>\n\n<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> <b>{gift_name}</b> sovg\'asi tez orada @{recipient} ga yetkazib beriladi!\n\n<i>Qolgan Stars balansingiz: {remaining} ⭐</i>',
 
     # Majburiy obuna
-    "sub_required_title": "📢 <b>Botdan to'liq foydalanish uchun quyidagi kanallarga a'zo bo'ling:</b>\n\nObuna bo'lgach, «✅ Tekshirish» tugmasini bosing:",
-    "btn_sub_check": "✅ Tekshirish",
-    "sub_not_completed": "❌ Siz hali barcha kanallarga a'zo bo'lmadingiz. Iltimos, barcha kanallarga obuna bo'lib qayta tekshiring!",
-    "sub_verified": "✅ Obuna tasdiqlandi! Botdan to'liq foydalanishingiz mumkin.",
+    "sub_required_title": '<tg-emoji emoji-id="5771695636411847302">📢</tg-emoji> <b>Botdan to\'liq foydalanish uchun quyidagi kanallarga a\'zo bo\'ling:</b>\n\nObuna bo\'lgach, «Tekshirish» tugmasini bosing:',
+    "btn_sub_check": "Tekshirish",
+    "sub_not_completed": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Siz hali barcha kanallarga a\'zo bo\'lmadingiz. Iltimos, barcha kanallarga obuna bo\'lib qayta tekshiring!',
+    "sub_verified": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Obuna tasdiqlandi! Botdan to\'liq foydalanishingiz mumkin.',
 }

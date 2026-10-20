@@ -52,72 +52,72 @@ TEXTS: dict = {
         '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Recipient: <b>@{recipient}</b>\n\n'
         "Choose Stars amount or tap <b>«Custom amount»</b>:"
     ),
-    "no_username_set": "⚠️ You don't have a @username. Enter recipient's username:",
-    "checking_username": "🔍 Checking...",
-    "username_invalid": "❌ User not found. Try again:",
+    "no_username_set": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> You don\'t have a @username. Enter recipient\'s username:',
+    "checking_username": '<tg-emoji emoji-id="5879618294845584992">🔍</tg-emoji> Checking...',
+    "username_invalid": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> User not found. Try again:',
 
     # Order
     "order_summary_stars": (
-        "📋 <b>Order:</b>\n\n"
-        "⭐ <b>{amount} Stars</b> ➔ @{recipient}\n"
-        "💰 Price: <b>{price}</b>\n"
-        "👛 Your balance: <b>{balance}</b>\n"
+        '<tg-emoji emoji-id="5886330010054168711">📋</tg-emoji> <b>Order:</b>\n\n'
+        '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> <b>{amount} Stars</b> ➔ @{recipient}\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Price: <b>{price}</b>\n'
+        '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Your balance: <b>{balance}</b>\n'
         "{discount_line}"
     ),
     "order_summary_premium": (
-        "📋 <b>Order:</b>\n\n"
-        "👑 <b>Premium ({duration})</b> ➔ @{recipient}\n"
-        "💰 Price: <b>{price}</b>\n"
-        "👛 Your balance: <b>{balance}</b>\n"
+        '<tg-emoji emoji-id="5886330010054168711">📋</tg-emoji> <b>Order:</b>\n\n'
+        '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> <b>Premium ({duration})</b> ➔ @{recipient}\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Price: <b>{price}</b>\n'
+        '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Your balance: <b>{balance}</b>\n'
         "{discount_line}"
     ),
     "order_summary_gift": (
-        "📋 <b>Order:</b>\n\n"
-        "🎁 <b>{gift_name} ({amount} Stars)</b> ➔ @{recipient}\n"
-        "💰 Price: <b>{price}</b>\n"
-        "👛 Your balance: <b>{balance}</b>\n"
+        '<tg-emoji emoji-id="5886330010054168711">📋</tg-emoji> <b>Order:</b>\n\n'
+        '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> <b>{gift_name} ({amount} Stars)</b> ➔ @{recipient}\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Price: <b>{price}</b>\n'
+        '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Your balance: <b>{balance}</b>\n'
         "{discount_line}"
     ),
-    "discount_line": "🎉 Discount: <b>-{discount}%</b>\n",
+    "discount_line": '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> Discount: <b>-{discount}%</b>\n',
 
     # Premium
     "premium_menu": (
-        "👑 <b>Telegram Premium</b>\n\n"
+        '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> <b>Telegram Premium</b>\n\n'
         "Select duration:"
     ),
 
     # Gift
     "gift_menu": (
-        "🎁 <b>Telegram Gift</b>\n\n"
+        '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> <b>Telegram Gift</b>\n\n'
         "Select gift:"
     ),
 
     # Payment
     "humo_payment_instructions": (
-        "💳 <b>Humo Payment:</b>\n\n"
-        "💳 Card:\n<code>{card_number}</code>\n"
-        "👤 Cardholder: <b>{card_holder}</b>\n\n"
-        "💰 Payment Amount:\n<code>{amount:,}</code> UZS\n\n"
-        "⏱ Payment window: <b>30 minutes</b>\n\n"
-        "⚠️ <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount:,}</code> UZS!"
+        '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Humo Payment:</b>\n\n'
+        '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> Card:\n<code>{card_number}</code>\n'
+        '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Cardholder: <b>{card_holder}</b>\n\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Payment Amount:\n<code>{amount:,}</code> UZS\n\n'
+        '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Payment window: <b>30 minutes</b>\n\n'
+        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount:,}</code> UZS!'
     ),
     "click_payment_instructions": (
-        "🔵 <b>Click (Uzcard) Payment:</b>\n\n"
-        "💳 Card:\n<code>{card_number}</code>\n"
-        "👤 Cardholder: <b>{card_holder}</b>\n\n"
-        "💰 Payment Amount:\n<code>{amount:,}</code> UZS\n\n"
-        "⏱ Payment window: <b>30 minutes</b>\n\n"
-        "⚠️ <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount:,}</code> UZS!\n\n"
+        '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Click (Uzcard) Payment:</b>\n\n'
+        '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> Card:\n<code>{card_number}</code>\n'
+        '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Cardholder: <b>{card_holder}</b>\n\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Payment Amount:\n<code>{amount:,}</code> UZS\n\n'
+        '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Payment window: <b>30 minutes</b>\n\n'
+        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount:,}</code> UZS!\n\n'
         "<i>You can transfer via @clickuz bot or Click Up app.</i>"
     ),
-    "payment_not_found": "⏳ Payment not found yet. If you transferred, please wait 1-2 minutes.",
-    "payment_found": "✅ Payment received!",
+    "payment_not_found": '<tg-emoji emoji-id="5778605968208170641">⏳</tg-emoji> Payment not found yet. If you transferred, please wait 1-2 minutes.',
+    "payment_found": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Payment received!',
     "order_completed": (
         '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Completed!</b>\n\n'
         '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> <b>{amount}</b> ➔ sent to @{recipient}.'
     ),
-    "order_failed": "❌ Failed. Contact @{support}.",
-    "order_expired": "⏱ Order #{id} expired (payment not received).",
+    "order_failed": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Failed. Contact @{support}.',
+    "order_expired": '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Order #{id} expired (payment not received).',
 
     # Balance
     "balance_info": (
@@ -130,14 +130,14 @@ TEXTS: dict = {
     "btn_pay_click": "Click (Uzcard)",
     "btn_pay_balance": "Pay from balance",
     "balance_topup_menu": '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Top up balance (Humo / Click):</b>\n\nChoose an amount or enter in UZS (e.g. 50000):',
-    "balance_topup_min_error": "⚠️ Minimum amount: {min:,} UZS",
+    "balance_topup_min_error": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> Minimum amount: {min:,} UZS',
     "balance_topup_uzs_completed": (
         '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Balance topped up!</b>\n\n'
         "+<b>{amount:,} UZS</b> credited to your balance.\n"
         "Current balance: <b>{new_balance:,} UZS</b>"
     ),
-    "paid_from_balance": "✅ Paid from balance! Order is being processed...",
-    "insufficient_balance": "⚠️ Insufficient balance.",
+    "paid_from_balance": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Paid from balance! Order is being processed...',
+    "insufficient_balance": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> Insufficient balance.',
 
     # Help
     "help_text": (
@@ -148,7 +148,7 @@ TEXTS: dict = {
 
     # Orders history
     "my_orders": '<tg-emoji emoji-id="5886330010054168711">📋</tg-emoji> <b>Your orders:</b>',
-    "no_orders": "📭 No orders yet.",
+    "no_orders": '<tg-emoji emoji-id="5924720918826848520">📦</tg-emoji> No orders yet.',
     "order_item": "#{id} | {type} ➔ @{recipient} | {amount} | {status_emoji} {status}",
 
     "status_pending":    "Pending",
@@ -158,14 +158,14 @@ TEXTS: dict = {
     "status_failed":     "Failed",
     "status_cancelled":  "Cancelled",
 
-    "type_stars":   "⭐ Stars",
-    "type_premium": "👑 Premium",
-    "type_gift":    "🎁 Gift",
+    "type_stars":   '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> Stars',
+    "type_premium": '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> Premium',
+    "type_gift":    '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> Gift',
 
-    "language_changed": "✅ Language changed!",
-    "error_general": "❌ Error. Please try again.",
-    "error_try_again": "❌ Please try again.",
-    "error_banned": "🚫 You are banned. @{support}",
+    "language_changed": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Language changed!',
+    "error_general": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Error. Please try again.',
+    "error_try_again": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Please try again.',
+    "error_banned": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> You are banned. @{support}',
 
     # Admin panel
     "admin_service_name_stars":      "⭐ Stars ($ / pc)",
@@ -188,12 +188,12 @@ TEXTS: dict = {
         '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Awaiting payment: 5 minutes'
     ),
     "admin_order_approved": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Order #{order_id} approved and fulfilled!',
-    "admin_order_already_processed": "⚠️ Order #{order_id} has already been processed or cancelled.",
+    "admin_order_already_processed": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> Order #{order_id} has already been processed or cancelled.',
 
     # Referrals & Gifts
     "referral_info": (
         '<tg-emoji emoji-id="5915556996215476302">👥</tg-emoji> <b>Referral Program</b>\n\n'
-        "🔗 <b>Your invite link:</b>\n"
+        '<tg-emoji emoji-id="5877465816030515018">🔗</tg-emoji> <b>Your invite link:</b>\n'
         "<code>{ref_link}</code>\n\n"
         '<tg-emoji emoji-id="5915556996215476302">👥</tg-emoji> Friends invited: <b>{ref_count}</b>\n'
         '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> Earned Stars: <b>{ref_stars}</b> ⭐\n\n'
@@ -203,14 +203,14 @@ TEXTS: dict = {
     "btn_claim_gift": "Claim Gift (Min: 16 ⭐)",
     "btn_share_ref": "Share with friends",
     "referral_share_text": "⭐ The easiest bot to buy Telegram Stars, Premium and Gifts! Join via this link:\n{ref_link}",
-    "referral_reward_notice": "🎉 <b>New referral!</b>\nA new user joined via your link. You earned <b>+2 Stars</b>! ⭐\n\nTotal Stars: <b>{total_stars} ⭐</b>",
-    "claim_min_stars_error": "⚠️ <b>Not enough Stars!</b>\nYou need at least <b>16 Stars</b> to claim a gift.\n\nYou have: <b>{current} Stars</b> (need <b>{needed} Stars</b> / {friends_needed} friends more).",
-    "claim_enter_recipient": "🎁 <b>Gift recipient:</b>\nEnter Telegram username or tap <b>«For myself»</b>:",
-    "claim_success": "🎉 <b>Gift request submitted!</b>\n\n🧸 <b>{gift_name}</b> will be delivered to @{recipient} shortly!\n\n<i>Remaining Stars: {remaining} ⭐</i>",
+    "referral_reward_notice": '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>New referral!</b>\nA new user joined via your link. You earned <b>+2 Stars</b>! <tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji>\n\nTotal Stars: <b>{total_stars}</b> <tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji>',
+    "claim_min_stars_error": '<tg-emoji emoji-id="5872829476143894491">🚫</tg-emoji> <b>Not enough Stars!</b>\nYou need at least <b>16 Stars</b> to claim a gift.\n\nYou have: <b>{current} Stars</b> (need <b>{needed} Stars</b> / {friends_needed} friends more).',
+    "claim_enter_recipient": '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> <b>Gift recipient:</b>\nEnter Telegram username or tap <b>«For myself»</b>:',
+    "claim_success": '<tg-emoji emoji-id="5994502837327892086">🎉</tg-emoji> <b>Gift request submitted!</b>\n\n<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> <b>{gift_name}</b> will be delivered to @{recipient} shortly!\n\n<i>Remaining Stars: {remaining} ⭐</i>',
 
     # Mandatory subscription
-    "sub_required_title": "📢 <b>To use the bot, please subscribe to our channels:</b>\n\nOnce subscribed, tap «✅ Check»:",
-    "btn_sub_check": "✅ Check",
-    "sub_not_completed": "❌ You haven't subscribed to all channels yet. Please subscribe and try again!",
-    "sub_verified": "✅ Subscription verified! Welcome!",
+    "sub_required_title": '<tg-emoji emoji-id="5771695636411847302">📢</tg-emoji> <b>To use the bot, please subscribe to our channels:</b>\n\nOnce subscribed, tap «Check»:',
+    "btn_sub_check": "Check",
+    "sub_not_completed": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> You haven\'t subscribed to all channels yet. Please subscribe and try again!',
+    "sub_verified": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Subscription verified! Welcome!',
 }
