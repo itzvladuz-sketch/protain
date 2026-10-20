@@ -215,52 +215,10 @@ async def _notify_admin_new_order(
     order_type: str,
     price_uzs: float,
 ) -> None:
-    db = Database(config.database_path)
-    order = await db.get_order(order_id)
-    payment_type = (order.get("payment_type") if order else "") or "humo"
-    recipient = (order.get("recipient_username") or "") if order else ""
-    qty = int(order.get("quantity") or 1) if order else 1
-
-    if order_type == "stars":
-        desc = f"{qty} Stars"
-    elif order_type == "premium":
-        desc = f"{qty} oy Premium"
-    elif order_type == "topup":
-        desc = "Balans to'ldirish"
-    else:
-        desc = f"{qty} Stars Gift"
-
-    rec_line = f"👤 Qabul qiluvchi: @{recipient}\n" if recipient and recipient != "self" else ""
-
-    admin_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"✅ #{order_id} Tasdiqlash va yuborish", callback_data=f"admin_confirm:{order_id}", icon_custom_emoji_id=ICONS["check"])],
-        [InlineKeyboardButton(text=f"❌ #{order_id} Bekor qilish", callback_data=f"admin_cancel:{order_id}", icon_custom_emoji_id=ICONS["cancel"])],
-    ])
-
-    if payment_type == "click":
-        card_type_title = "Click (Uzcard)"
-        card_num = config.click_card_number or "8801 9102 6669 7252"
-    else:
-        card_type_title = "Humo"
-        card_num = config.humo_card_number or "9860 3501 4730 5402"
-
-    caption = (
-        f"{tg_icon('bell', '🔔')} <b>Yangi {card_type_title} to'lov kutilmoqda!</b>\n\n"
-        f"{tg_icon('orders', '🆔')} Buyurtma: #{order_id}\n"
-        f"{tg_icon('user', '👤')} Foydalanuvchi: <code>{user_id}</code> (@{username or 'yoq'})\n"
-        f"{rec_line}"
-        f"{tg_icon('box', '📦')} Mahsulot: <b>{desc}</b>\n"
-        f"{tg_icon('dollar', '💵')} Summa: <b>{int(price_uzs):,} so'm</b>\n"
-        f"{tg_icon('card', '💳')} Karta ({card_type_title}): <code>{card_num}</code>\n\n"
-        f"<i>To'lov kelgach, pastdagi tugmani bosib darhol tasdiqlashingiz mumkin:</i>"
-    )
-
-    for adm_id in config.admin_user_ids:
-        try:
-            await bot.send_message(adm_id, caption, reply_markup=admin_kb, parse_mode="HTML")
-            logger.info("Adminga (#{}: {}) to'lov bildirishnomasi yuborildi", adm_id, order_id)
-        except Exception as e:
-            logger.warning("Adminga bildirishnoma yuborilmadi: {}", e)
+    """Yangi buyurtma ochilganda faqat tizim jurnaliga (log) yoziladi.
+    Adminga oldindan xabar bormaydi, faqat pul tushganda avtomatik xabar boradi.
+    """
+    logger.info("Yangi to'lov kutilmoqda: Order #{} ({} so'm, user: {})", order_id, price_uzs, user_id)
 
 
 @router.callback_query(F.data == "balance:topup")
@@ -1078,26 +1036,6 @@ async def check_payment(callback: CallbackQuery, state: FSMContext) -> None:
     rec_desc = f" (@{order.get('recipient_username')})" if order.get('recipient_username') and order.get('recipient_username') != 'self' else ""
     check_amt = int(float(order.get("price_uzs") or 0))
 
-    admin_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"✅ #{order_id} Tasdiqlash", callback_data=f"admin_confirm:{order_id}", icon_custom_emoji_id=ICONS["check"])],
-        [InlineKeyboardButton(text=f"❌ #{order_id} Bekor qilish", callback_data=f"admin_cancel:{order_id}", icon_custom_emoji_id=ICONS["cancel"])],
-    ])
-    for adm_id in config.admin_user_ids:
-        try:
-            await callback.bot.send_message(
-                adm_id,
-                f"{tg_icon('bell', '🔔')} <b>Foydalanuvchi to'lovni tekshirdi!</b>\n\n"
-                f"{tg_icon('orders', '🆔')} Buyurtma: #{order_id}\n"
-                f"{tg_icon('user', '👤')} Foydalanuvchi: <code>{user.id}</code> (@{user.username or 'yoq'})\n"
-                f"{tg_icon('box', '📦')} Mahsulot: <b>{order_type_desc}</b>{rec_desc}\n"
-                f"{tg_icon('dollar', '💵')} Summa: <b>{check_amt:,} so'm</b>\n\n"
-                f"<i>Agar pul kartangizga tushgan bo'lsa, quyidagi tugmani bosib tasdiqlang:</i>",
-                reply_markup=admin_kb,
-                parse_mode="HTML",
-            )
-        except Exception:
-            pass
-
     if user.id in config.admin_user_ids:
         test_kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⚡️ Hoziroq tasdiqlash va Stars yuborish", callback_data=f"admin_confirm:{order_id}", icon_custom_emoji_id=ICONS["lightning"])],
@@ -1117,9 +1055,9 @@ async def check_payment(callback: CallbackQuery, state: FSMContext) -> None:
         return
 
     alert_text = (
-        "⏳ To'lov tekshirilmoqda.\n\n"
-        "To'lov kartaga tushishi bilan tizim avtomatik tasdiqlaydi. "
-        "Yoki to'lov chekini (skrinshotini) shu chatga rasm qilib yuboring!"
+        "⏳ To'lov tekshirilmoqda...\n\n"
+        "To'lov kartaga tushishi bilan tizim avtomatik tasdiqlaydi (odatda 1-2 daqiqa). "
+        "Agar to'lov qilgan bo'lsangiz, to'lov cheki skrinshotini shu yerga yuborishingiz mumkin!"
     )
     await callback.answer(alert_text, show_alert=True)
 

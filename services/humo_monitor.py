@@ -208,16 +208,17 @@ class HumoPaymentMonitor:
                     is_match = False
                     if target_bots and any(tb == sender_username or tb in sender_username or tb in sender_title for tb in target_bots):
                         is_match = True
-                    elif any(bank_tag in sender_username or bank_tag in sender_title for bank_tag in ("humo", "humocard", "payme", "click", "clickuz", "bank", "sms", "pay")):
+                    elif any(bank_tag in sender_username or bank_tag in sender_title for bank_tag in (
+                        "humo", "humocard", "payme", "click", "clickuz", "bank", "sms", "pay",
+                        "uzum", "anor", "tbc", "infin", "kapital", "agro", "xalq", "hamkor",
+                        "ipak", "ipoteka", "davr", "trust", "milliy", "nbu", "sqb", "asakabank", "paynet"
+                    )):
                         is_match = True
 
-                    if not is_match:
-                        return
-
                     msg_text = event.raw_text or ""
-                    logger.info("Bank/To'lov xabari keldi (@{} / {}): {}", sender_username, sender_title, msg_text[:80].replace('\n', ' '))
                     amt = extract_amount_uzs(msg_text)
-                    if amt:
+                    # If it's a known bank bot OR if message is unambiguously a deposit notification with amount
+                    if amt and (is_match or any(k in msg_text.lower() for k in ("tushum", "kirim", "to'ldirildi", "toldirildi", "karta to'ldirildi", "hisobingiz to'ldirildi", "зачисление", "пополнение", "kelib tushdi"))):
                         logger.info("To'lov xabari aniqlandi: {} so'm (yuboruvchi: @{} / {})", amt, sender_username, sender_title)
                         await self.process_incoming_humo_payment(amt, msg_text)
                 except Exception as err:
@@ -233,7 +234,18 @@ class HumoPaymentMonitor:
         """Match incoming payment with a pending order and fulfill."""
         order = await self.db.find_pending_humo_order(amount_uzs)
         if not order:
-            logger.info("Mos keluvchi Humo buyurtma topilmadi (summa: {} so'm)", amount_uzs)
+            logger.info("Mos keluvchi Humo/Click buyurtma topilmadi (summa: {} so'm)", amount_uzs)
+            for adm_id in self.config.admin_user_ids:
+                try:
+                    await self.bot.send_message(
+                        adm_id,
+                        f"🔔 <b>Kartaga to'lov kelib tushdi!</b>\n\n"
+                        f"💰 Summa: <b>{int(amount_uzs):,} so'm</b>\n\n"
+                        f"ℹ️ <i>Mos keluvchi faol buyurtma topilmadi. Agar biror foydalanuvchi adashib o'tkazgan bo'lsa, <code>/pay @username {int(amount_uzs)}</code> orqali hisobiga qo'shishingiz mumkin.</i>",
+                        parse_mode="HTML",
+                    )
+                except Exception:
+                    pass
             return False
 
         order_id = int(order["id"])
@@ -245,7 +257,7 @@ class HumoPaymentMonitor:
         lang = await self.db.get_user_lang(user_id)
         price_uzs = float(order.get("price_uzs") or amount_uzs)
 
-        logger.info("Humo to'lov tasdiqlandi: Order #{} ({} so'm)", order_id, amount_uzs)
+        logger.info("Humo/Click to'lov tasdiqlandi: Order #{} ({} so'm)", order_id, amount_uzs)
 
         if order_type == "topup":
             await self.db.update_user_balance_uzs(user_id, price_uzs)
@@ -261,16 +273,17 @@ class HumoPaymentMonitor:
             except Exception as e:
                 logger.warning("Foydalanuvchiga bildirishnoma yuborilmadi: {}", e)
 
-            # Admin notice
+            # Admin notice: Faqat axborot (tasdiqlash tugmalari talab qilinmaydi)
             for adm_id in self.config.admin_user_ids:
                 try:
                     await self.bot.send_message(
                         adm_id,
-                        f"💰 <b>Humo to'lov tasdiqlandi!</b>\n\n"
-                        f"🆔 Buyurtma: #{order_id}\n"
-                        f"👤 Foydalanuvchi: <code>{user_id}</code> (@{username})\n"
+                        f"💰 <b>To'lov avtomatik qabul qilindi!</b>\n\n"
+                        f"🆔 Buyurtma: #{order_id} (Balans to'ldirish)\n"
+                        f"👤 Foydalanuvchi: <code>{user_id}</code> (@{username or 'yoq'})\n"
                         f"💵 Summa: <b>{int(price_uzs):,} so'm</b>\n"
-                        f"✅ Balansga muvaffaqiyatli o'tkazildi!",
+                        f"✅ Foydalanuvchi balansiga avtomatik o'tkazildi!\n"
+                        f"👛 Yangi balansi: <b>{int(new_bal_uzs):,} so'm</b>",
                         parse_mode="HTML",
                     )
                 except Exception:
@@ -302,6 +315,22 @@ class HumoPaymentMonitor:
                 )
             except Exception as e:
                 logger.warning("Foydalanuvchiga xabar yuborilmadi: {}", e)
+
+            for adm_id in self.config.admin_user_ids:
+                try:
+                    await self.bot.send_message(
+                        adm_id,
+                        f"🎁 <b>Sovg'a to'lovi avtomatik qabul qilindi!</b>\n\n"
+                        f"🆔 Buyurtma: #{order_id}\n"
+                        f"👤 Foydalanuvchi: <code>{user_id}</code> (@{username or 'yoq'})\n"
+                        f"👤 Qabul qiluvchi: @{recipient}\n"
+                        f"🧸 Sovg'a: <b>{desc}</b>\n"
+                        f"💵 Summa: <b>{int(price_uzs):,} so'm</b>\n"
+                        f"✅ To'lov qabul qilindi va yetkazish navbatiga qo'yildi!",
+                        parse_mode="HTML",
+                    )
+                except Exception:
+                    pass
             return True
 
         # Regular service order (stars, premium)
@@ -332,16 +361,18 @@ class HumoPaymentMonitor:
                 parse_mode="HTML",
             )
 
-            # Admin notice
+            # Admin notice: Faqat axborot (hech qanday qo'lda tasdiqlash talab qilinmaydi)
             for adm_id in self.config.admin_user_ids:
                 try:
                     await self.bot.send_message(
                         adm_id,
-                        f"✅ <b>Humo buyurtma muvaffaqiyatli bajarildi!</b>\n\n"
+                        f"🎉 <b>To'lov kelib tushdi va avtomatik yetkazildi!</b>\n\n"
                         f"🆔 Buyurtma: #{order_id}\n"
+                        f"👤 Foydalanuvchi: <code>{user_id}</code> (@{username or 'yoq'})\n"
                         f"👤 Qabul qiluvchi: @{recipient}\n"
                         f"📦 Mahsulot: <b>{desc}</b>\n"
-                        f"💵 Summa: <b>{int(price_uzs):,} so'm</b>",
+                        f"💵 Summa: <b>{int(price_uzs):,} so'm</b>\n\n"
+                        f"⚡️ <i>Fragment orqali avtomatik muvaffaqiyatli yetkazildi!</i>",
                         parse_mode="HTML",
                     )
                 except Exception:
