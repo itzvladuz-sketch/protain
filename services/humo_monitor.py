@@ -51,8 +51,8 @@ def extract_amount_uzs(text: str) -> Optional[float]:
         return None
 
     for raw_line in normalized.splitlines():
-        # Split by comma or semicolon in case bank SMS puts everything on one line
-        chunks = re.split(r"[,;]", raw_line) if ("," in raw_line or ";" in raw_line) else [raw_line]
+        # Split by comma, semicolon, or sentence-ending period (. followed by whitespace)
+        chunks = re.split(r"[,;]|\.\s+", raw_line)
         for line in chunks:
             line = line.strip()
             line_lower = line.lower()
