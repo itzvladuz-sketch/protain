@@ -27,6 +27,8 @@ TEXTS: dict = {
     "btn_orders":   "Buyurtmalarim",
     "btn_help":     "Yordam",
     "btn_language": "Tilni o'zgartirish",
+    "btn_support": "👨‍💻 Qo'llab-quvvatlash",
+    "btn_refresh": "🔄 Yangilash",
     "btn_myself":   "O'zimga",
     "btn_back":     "Orqaga",
     "btn_cancel":   "Bekor qilish",
@@ -157,10 +159,12 @@ TEXTS: dict = {
     "status_completed":  "Bajarildi",
     "status_failed":     "Xatolik",
     "status_cancelled":  "Bekor",
+    "status_expired":    "Muddati o'tgan",
 
     "type_stars":   '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> Stars',
     "type_premium": '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> Premium',
     "type_gift":    '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> Gift',
+    "type_topup":   '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Balans',
 
     "language_changed": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Til o\'zgartirildi!',
     "error_general": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Xatolik. Qaytadan urinib ko\'ring.',

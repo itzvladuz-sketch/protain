@@ -46,6 +46,7 @@ STATUS_EMOJIS = {
     "completed":  "🎉",
     "failed":     "❌",
     "cancelled":  "🚫",
+    "expired":    "⏱️",
 }
 
 

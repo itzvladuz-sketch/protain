@@ -157,10 +157,12 @@ TEXTS: dict = {
     "status_completed":  "Completed",
     "status_failed":     "Failed",
     "status_cancelled":  "Cancelled",
+    "status_expired":    "Expired",
 
     "type_stars":   '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> Stars',
     "type_premium": '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> Premium',
     "type_gift":    '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> Gift',
+    "type_topup":   '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Topup',
 
     "language_changed": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Language changed!',
     "error_general": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Error. Please try again.',

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+
 import asyncio
 from typing import Optional
 
@@ -542,16 +544,21 @@ async def admin_orders(callback: CallbackQuery) -> None:
 
     lines = [f"{tg_icon('orders', '📋')} <b>So'nggi {len(orders)} ta buyurtma:</b>\n"]
     for o in orders:
-        emoji = STATUS_EMOJIS.get(o["status"], "•")
+        emoji = STATUS_EMOJIS.get(o.get("status"), "•")
         date_str = str(o.get("created_at", ""))[:16].replace("T", " ")
         price_uzs = float(o.get("price_uzs") or 0.0)
         price_disp = f"{int(price_uzs):,} so'm" if price_uzs > 0 else f"{float(o.get('price_ton',0)):.4f} TON"
+        u_name = html.escape(str(o.get("username") or o.get("user_id") or "?")).lstrip("@")
+        raw_rec = o.get("recipient_username")
+        rec_disp = "Hisobga" if (not raw_rec or raw_rec == "self") else f"@{html.escape(raw_rec.lstrip('@'))}"
+        order_type = html.escape(str(o.get("order_type") or "?").upper())
+        qty = o.get("quantity", 1)
         lines.append(
-            f"{tg_icon('pin', '🔖')} <b>#{o['id']}</b> {emoji} | {o.get('order_type','?').upper()}\n"
-            f"   {tg_icon('user', '👤')} @{o.get('username','?')} → @{o.get('recipient_username','?')}\n"
+            f"{tg_icon('pin', '🔖')} <b>#{o['id']}</b> {emoji} | {order_type} ({qty})\n"
+            f"   {tg_icon('user', '👤')} @{u_name} → {rec_disp}\n"
             f"   💰 {price_disp} | {tg_icon('calendar', '📅')} {date_str}"
         )
-        if len(lines) > 30:  # Telegram message limit safety
+        if len(lines) > 30:
             break
 
     # Add filter buttons
@@ -600,13 +607,18 @@ async def admin_orders_filtered(callback: CallbackQuery) -> None:
 
     lines = [f"{tg_icon('orders', '📋')} <b>{label}</b> ({len(orders)} ta):\n"]
     for o in orders:
-        emoji = STATUS_EMOJIS.get(o["status"], "•")
+        emoji = STATUS_EMOJIS.get(o.get("status"), "•")
         date_str = str(o.get("created_at", ""))[:16].replace("T", " ")
         price_uzs = float(o.get("price_uzs") or 0.0)
         price_disp = f"{int(price_uzs):,} so'm" if price_uzs > 0 else f"{float(o.get('price_ton',0)):.4f} TON"
+        u_name = html.escape(str(o.get("username") or o.get("user_id") or "?")).lstrip("@")
+        raw_rec = o.get("recipient_username")
+        rec_disp = "Hisobga" if (not raw_rec or raw_rec == "self") else f"@{html.escape(raw_rec.lstrip('@'))}"
+        order_type = html.escape(str(o.get("order_type") or "?").upper())
+        qty = o.get("quantity", 1)
         lines.append(
-            f"{tg_icon('pin', '🔖')} <b>#{o['id']}</b> {emoji} | {o.get('order_type','?').upper()}\n"
-            f"   {tg_icon('user', '👤')} @{o.get('username','?')} → @{o.get('recipient_username','?')}\n"
+            f"{tg_icon('pin', '🔖')} <b>#{o['id']}</b> {emoji} | {order_type} ({qty})\n"
+            f"   {tg_icon('user', '👤')} @{u_name} → {rec_disp}\n"
             f"   💰 {price_disp} | {tg_icon('calendar', '📅')} {date_str}"
         )
 

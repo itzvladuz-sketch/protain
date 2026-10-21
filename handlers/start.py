@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+
 from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
@@ -220,20 +222,26 @@ async def menu_help(callback: CallbackQuery) -> None:
 
     db_user = await db.get_or_create_user(user.id, user.username)
     lang = db_user.get("lang", "uz")
+    sup_user = (config.support_username or "id_4448").lstrip("@")
 
-    back_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])]
+    help_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_support"), url=f"https://t.me/{sup_user}", icon_custom_emoji_id=ICONS["user"])],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
-    await callback.message.edit_text(
-        t(lang, "help_text", support=config.support_username or "admin"),
-        reply_markup=back_kb,
-        parse_mode="HTML",
-    )
+    try:
+        await callback.message.edit_text(
+            t(lang, "help_text", support=sup_user),
+            reply_markup=help_kb,
+            parse_mode="HTML",
+        )
+    except Exception:
+        pass
     await callback.answer()
 
 
 @router.callback_query(F.data == "menu:orders")
 async def menu_orders(callback: CallbackQuery) -> None:
+    await callback.answer()
     config = BotConfig.load()
     db = Database(config.database_path)
     user = callback.from_user
@@ -242,42 +250,84 @@ async def menu_orders(callback: CallbackQuery) -> None:
 
     db_user = await db.get_or_create_user(user.id, user.username)
     lang = db_user.get("lang", "uz")
-    orders = await db.get_user_orders(user.id, limit=8)
+    orders = await db.get_user_orders(user.id, limit=10)
 
-    back_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])]
+    order_nav_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_refresh"), callback_data="menu:orders", icon_custom_emoji_id=ICONS["sparkle"])],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
 
     if not orders:
-        await callback.message.edit_text(
-            t(lang, "no_orders"),
-            reply_markup=back_kb,
-            parse_mode="HTML",
-        )
-        await callback.answer()
+        try:
+            await callback.message.edit_text(
+                t(lang, "no_orders"),
+                reply_markup=order_nav_kb,
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
         return
 
-    lines = [t(lang, "my_orders") + "\n"]
+    lines = [f"{t(lang, 'my_orders')}\n"]
     for o in orders:
-        status_key = f"status_{o['status']}"
-        type_key = f"type_{o['order_type']}"
-        emoji = STATUS_EMOJIS.get(o["status"], "•")
+        order_id = o["id"]
+        status = o.get("status") or "pending"
+        status_key = f"status_{status}"
+        order_type = o.get("order_type") or "stars"
+        type_key = f"type_{order_type}"
+        emoji = STATUS_EMOJIS.get(status, "•")
+        status_text = t(lang, status_key)
+        type_text = t(lang, type_key)
+
+        price_uzs = float(o.get("price_uzs") or 0.0)
+        price_ton = float(o.get("price_ton") or 0.0)
+        if price_uzs > 0:
+            price_disp = f"{int(price_uzs):,} so'm"
+        elif price_ton > 0:
+            price_disp = f"{price_ton:.4f} TON"
+        else:
+            price_disp = f"${float(o.get('price_usd') or 0):.2f}"
+
+        raw_rec = o.get("recipient_username")
+        if not raw_rec or raw_rec == "self":
+            rec_disp = "Hisobga"
+        else:
+            rec_disp = f"@{html.escape(raw_rec.lstrip('@'))}"
+
+        qty = o.get("quantity", 1)
+        if order_type == "stars":
+            item_desc = f"{qty} dona"
+        elif order_type == "premium":
+            item_desc = f"{qty} oy"
+        elif order_type == "gift":
+            item_desc = f"{qty} Sovg'a"
+        else:
+            item_desc = f"{price_disp}"
+
+        date_str = str(o.get("created_at", ""))[:16].replace("T", " ")
+
         lines.append(
-            t(lang, "order_item",
-              id=o["id"],
-              type=t(lang, type_key),
-              recipient=o.get("recipient_username", "?"),
-              amount=o.get("quantity", "?"),
-              status_emoji=emoji,
-              status=t(lang, status_key))
+            f"<b>#{order_id}</b> | {type_text} ({item_desc})\n"
+            f"   {tg_icon('pin', '📌')} Kimga: <code>{rec_disp}</code>\n"
+            f"   {tg_icon('card', '💳')} Narx: <b>{price_disp}</b>\n"
+            f"   {emoji} Holat: <b>{status_text}</b>"
+            + (f" | <i>{date_str}</i>" if date_str else "")
         )
 
-    await callback.message.edit_text(
-        "\n".join(lines),
-        reply_markup=back_kb,
-        parse_mode="HTML",
-    )
-    await callback.answer()
+    text = "\n\n".join(lines)
+    if len(text) > 4000:
+        text = text[:3950] + "\n\n<i>... (qisqartirildi)</i>"
+
+    try:
+        await callback.message.edit_text(
+            text,
+            reply_markup=order_nav_kb,
+            parse_mode="HTML",
+        )
+    except Exception:
+        pass
+
+
 
 
 @router.callback_query(F.data == "back:main")

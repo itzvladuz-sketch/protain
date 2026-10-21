@@ -141,7 +141,7 @@ class BotConfig:
             bot_token=os.getenv("BOT_TOKEN", ""),
             database_path=os.getenv("DATABASE_PATH", "stars_bot.db"),
             admin_user_ids=_admin_ids(),
-            support_username=os.getenv("SUPPORT_USERNAME", "support"),
+            support_username=os.getenv("SUPPORT_USERNAME", "id_4448"),
             fragment_api_key=api_key,
             fragment_wallet_mnemonic=os.getenv("FRAGMENT_WALLET_MNEMONIC", ""),
             fragment_api_url=os.getenv("FRAGMENT_API_URL", "https://api.fragment-api.space"),

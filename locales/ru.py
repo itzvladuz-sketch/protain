@@ -27,6 +27,8 @@ TEXTS: dict = {
     "btn_orders":   "Мои заказы",
     "btn_help":     "Помощь",
     "btn_language": "Сменить язык",
+    "btn_support": "👨‍💻 Поддержка",
+    "btn_refresh": "🔄 Обновить",
     "btn_myself":   "Себе",
     "btn_back":     "Назад",
     "btn_cancel":   "Отмена",
@@ -157,10 +159,12 @@ TEXTS: dict = {
     "status_completed":  "Выполнен",
     "status_failed":     "Ошибка",
     "status_cancelled":  "Отменен",
+    "status_expired":    "Истек",
 
     "type_stars":   '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> Stars',
     "type_premium": '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> Premium',
     "type_gift":    '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> Gift',
+    "type_topup":   '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Баланс',
 
     "language_changed": '<tg-emoji emoji-id="5776375003280838798">✅</tg-emoji> Язык изменён!',
     "error_general": '<tg-emoji emoji-id="5778527486270770928">❌</tg-emoji> Ошибка. Попробуйте снова.',
