@@ -189,6 +189,34 @@ class Database:
                     error_message       TEXT
                 );
 
+                CREATE TABLE IF NOT EXISTS balance_transactions (
+                    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id             INTEGER NOT NULL,
+                    admin_id            INTEGER DEFAULT NULL,
+                    tx_type             TEXT NOT NULL,
+                    amount_uzs          REAL NOT NULL DEFAULT 0.0,
+                    amount_ton          REAL NOT NULL DEFAULT 0.0,
+                    old_balance_uzs     REAL NOT NULL DEFAULT 0.0,
+                    new_balance_uzs     REAL NOT NULL DEFAULT 0.0,
+                    order_id            INTEGER DEFAULT NULL,
+                    comment             TEXT,
+                    created_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS withdraw_requests (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id         INTEGER NOT NULL,
+                    username        TEXT,
+                    card_number     TEXT NOT NULL,
+                    card_holder     TEXT DEFAULT NULL,
+                    amount_uzs      REAL NOT NULL,
+                    status          TEXT NOT NULL DEFAULT 'pending',
+                    admin_id        INTEGER DEFAULT NULL,
+                    admin_note      TEXT DEFAULT NULL,
+                    created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    processed_at    TEXT DEFAULT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id);
                 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
                 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
@@ -197,6 +225,11 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_orders_expires ON orders(expires_at);
                 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
                 CREATE INDEX IF NOT EXISTS idx_gift_requests_status ON gift_requests(status);
+                CREATE INDEX IF NOT EXISTS idx_bt_user ON balance_transactions(user_id);
+                CREATE INDEX IF NOT EXISTS idx_bt_type ON balance_transactions(tx_type);
+                CREATE INDEX IF NOT EXISTS idx_bt_created ON balance_transactions(created_at);
+                CREATE INDEX IF NOT EXISTS idx_wr_status ON withdraw_requests(status);
+                CREATE INDEX IF NOT EXISTS idx_wr_user ON withdraw_requests(user_id);
             """)
             await db.commit()
             await self._ensure_orders_columns(db)
@@ -836,3 +869,210 @@ class Database:
             cursor = await db.execute(query, tuple(params))
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
+
+
+    # ─── Transactions & Ledger ───────────────────────────────────────────────
+
+    async def record_transaction(
+        self,
+        user_id: int,
+        tx_type: str,
+        amount_uzs: float = 0.0,
+        old_balance_uzs: float = 0.0,
+        new_balance_uzs: float = 0.0,
+        admin_id: Optional[int] = None,
+        order_id: Optional[int] = None,
+        comment: Optional[str] = None,
+        amount_ton: float = 0.0,
+    ) -> int:
+        """Record an immutable transaction entry into balance_transactions."""
+        async with self.connect() as db:
+            cursor = await db.execute(
+                """
+                INSERT INTO balance_transactions (
+                    user_id, admin_id, tx_type, amount_uzs, amount_ton,
+                    old_balance_uzs, new_balance_uzs, order_id, comment
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id, admin_id, tx_type, amount_uzs, amount_ton,
+                    old_balance_uzs, new_balance_uzs, order_id, comment
+                ),
+            )
+            await db.commit()
+            return cursor.lastrowid
+
+    async def get_user_transactions(self, user_id: int, limit: int = 15) -> List[Dict[str, Any]]:
+        """Return transaction history for a single user."""
+        return await self._fetch(
+            """
+            SELECT * FROM balance_transactions
+            WHERE user_id = ?
+            ORDER BY id DESC LIMIT ?
+            """,
+            (user_id, limit),
+        )
+
+    async def get_withdrawals_history(self, limit: int = 30) -> List[Dict[str, Any]]:
+        """Return list of deductions/withdrawals made by admin or approved for users."""
+        return await self._fetch(
+            """
+            SELECT bt.*, u.username
+            FROM balance_transactions bt
+            LEFT JOIN users u ON u.user_id = bt.user_id
+            WHERE bt.tx_type IN ('admin_withdraw', 'admin_zero', 'user_withdraw_approved')
+            ORDER BY bt.id DESC LIMIT ?
+            """,
+            (limit,),
+        )
+
+    async def get_all_transactions(self, limit: int = 30) -> List[Dict[str, Any]]:
+        """Return latest transactions across all types."""
+        return await self._fetch(
+            """
+            SELECT bt.*, u.username
+            FROM balance_transactions bt
+            LEFT JOIN users u ON u.user_id = bt.user_id
+            ORDER BY bt.id DESC LIMIT ?
+            """,
+            (limit,),
+        )
+
+    async def get_financial_stats(self) -> Dict[str, Any]:
+        """Aggregate total deposits, withdrawals, purchases and current user balances."""
+        today = date.today().isoformat()
+        async with self.connect() as db:
+            # 1. Total topups (card & ton & manual admin topups)
+            c1 = await db.execute(
+                "SELECT COALESCE(SUM(amount_uzs), 0) FROM balance_transactions WHERE tx_type IN ('card_topup', 'ton_topup', 'admin_deposit')"
+            )
+            total_deposited = float((await c1.fetchone())[0])
+
+            # 2. Total admin withdrawals & user withdrawals
+            c2 = await db.execute(
+                "SELECT COALESCE(SUM(amount_uzs), 0) FROM balance_transactions WHERE tx_type IN ('admin_withdraw', 'admin_zero')"
+            )
+            total_admin_withdrawn = float((await c2.fetchone())[0])
+
+            c3 = await db.execute(
+                "SELECT COALESCE(SUM(amount_uzs), 0) FROM balance_transactions WHERE tx_type = 'user_withdraw_approved'"
+            )
+            total_user_withdrawn = float((await c3.fetchone())[0])
+
+            # 3. Purchases from balance
+            c4 = await db.execute(
+                "SELECT COALESCE(SUM(amount_uzs), 0) FROM balance_transactions WHERE tx_type = 'purchase'"
+            )
+            total_purchases = float((await c4.fetchone())[0])
+
+            # 4. Today's stats
+            c5 = await db.execute(
+                "SELECT COALESCE(SUM(amount_uzs), 0) FROM balance_transactions WHERE tx_type IN ('card_topup', 'ton_topup', 'admin_deposit') AND created_at >= ?",
+                (today,),
+            )
+            today_deposited = float((await c5.fetchone())[0])
+
+            c6 = await db.execute(
+                "SELECT COALESCE(SUM(amount_uzs), 0) FROM balance_transactions WHERE tx_type IN ('admin_withdraw', 'admin_zero', 'user_withdraw_approved') AND created_at >= ?",
+                (today,),
+            )
+            today_withdrawn = float((await c6.fetchone())[0])
+
+            # 5. Current balance sum in users table
+            c7 = await db.execute("SELECT COALESCE(SUM(balance_uzs), 0) FROM users")
+            current_user_balances = float((await c7.fetchone())[0])
+
+            # 6. Pending withdraw requests count
+            c8 = await db.execute("SELECT COUNT(*) FROM withdraw_requests WHERE status = 'pending'")
+            pending_withdraw_count = int((await c8.fetchone())[0])
+
+        return {
+            "total_deposited": total_deposited,
+            "total_admin_withdrawn": total_admin_withdrawn,
+            "total_user_withdrawn": total_user_withdrawn,
+            "total_withdrawn_overall": total_admin_withdrawn + total_user_withdrawn,
+            "total_purchases": total_purchases,
+            "today_deposited": today_deposited,
+            "today_withdrawn": today_withdrawn,
+            "current_user_balances": current_user_balances,
+            "pending_withdraw_count": pending_withdraw_count,
+        }
+
+    async def get_user_financial_profile(self, user_id: int) -> Dict[str, Any]:
+        """Aggregate deposit, withdrawal, and purchase totals for a specific user."""
+        async with self.connect() as db:
+            c1 = await db.execute(
+                "SELECT COALESCE(SUM(amount_uzs), 0) FROM balance_transactions WHERE user_id = ? AND tx_type IN ('card_topup', 'ton_topup', 'admin_deposit')",
+                (user_id,),
+            )
+            deposited = float((await c1.fetchone())[0])
+
+            c2 = await db.execute(
+                "SELECT COALESCE(SUM(amount_uzs), 0) FROM balance_transactions WHERE user_id = ? AND tx_type IN ('admin_withdraw', 'admin_zero', 'user_withdraw_approved')",
+                (user_id,),
+            )
+            withdrawn = float((await c2.fetchone())[0])
+
+            c3 = await db.execute(
+                "SELECT COALESCE(SUM(amount_uzs), 0) FROM balance_transactions WHERE user_id = ? AND tx_type = 'purchase'",
+                (user_id,),
+            )
+            purchased = float((await c3.fetchone())[0])
+
+        return {
+            "total_deposited": deposited,
+            "total_withdrawn": withdrawn,
+            "total_purchased": purchased,
+        }
+
+    # ─── Withdraw Requests (User to Card) ────────────────────────────────────
+
+    async def create_withdraw_request(
+        self,
+        user_id: int,
+        username: Optional[str],
+        card_number: str,
+        card_holder: Optional[str],
+        amount_uzs: float,
+    ) -> int:
+        """Create a new user withdrawal request."""
+        async with self.connect() as db:
+            cursor = await db.execute(
+                """
+                INSERT INTO withdraw_requests (user_id, username, card_number, card_holder, amount_uzs, status)
+                VALUES (?, ?, ?, ?, ?, 'pending')
+                """,
+                (user_id, username, card_number, card_holder, amount_uzs),
+            )
+            await db.commit()
+            return cursor.lastrowid
+
+    async def get_withdraw_request(self, req_id: int) -> Optional[Dict[str, Any]]:
+        rows = await self._fetch("SELECT * FROM withdraw_requests WHERE id = ?", (req_id,))
+        return rows[0] if rows else None
+
+    async def get_pending_withdraw_requests(self, limit: int = 20) -> List[Dict[str, Any]]:
+        return await self._fetch(
+            "SELECT * FROM withdraw_requests WHERE status = 'pending' ORDER BY id ASC LIMIT ?",
+            (limit,),
+        )
+
+    async def get_pending_withdraw_count(self) -> int:
+        rows = await self._fetch("SELECT COUNT(*) as cnt FROM withdraw_requests WHERE status = 'pending'")
+        return int(rows[0]["cnt"]) if rows else 0
+
+    async def set_withdraw_request_status(
+        self, req_id: int, status: str, admin_id: Optional[int] = None, admin_note: Optional[str] = None
+    ) -> bool:
+        now = datetime.now().isoformat(timespec="seconds")
+        async with self.connect() as db:
+            cursor = await db.execute(
+                """
+                UPDATE withdraw_requests
+                SET status = ?, admin_id = ?, admin_note = ?, processed_at = ?
+                WHERE id = ? AND status = 'pending'
+                """,
+                (status, admin_id, admin_note, now, req_id),
+            )
+            await db.commit()
+            return cursor.rowcount == 1

@@ -202,7 +202,13 @@ async def menu_balance(callback: CallbackQuery) -> None:
     formatted_bal = format_balance(balance_uzs, lang, config)
 
     balance_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="balance:topup", icon_custom_emoji_id=ICONS["plus"])],
+        [
+            InlineKeyboardButton(text="➕ " + t(lang, "btn_topup"), callback_data="balance:topup", icon_custom_emoji_id=ICONS["plus"]),
+            InlineKeyboardButton(text="💸 Pul yechish", callback_data="balance:withdraw", icon_custom_emoji_id=ICONS["money"]),
+        ],
+        [
+            InlineKeyboardButton(text="📜 Tranzaksiyalar tarixi", callback_data="balance:history", icon_custom_emoji_id=ICONS["orders"]),
+        ],
         [InlineKeyboardButton(text=t(lang, "btn_back"),  callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
     user_num = db_user.get("id", 1)

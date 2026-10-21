@@ -265,10 +265,24 @@ class HumoPaymentMonitor:
         logger.info("Humo/Click to'lov tasdiqlandi: Order #{} ({} so'm)", order_id, amount_uzs)
 
         if order_type == "topup":
+            u_before = await self.db.get_user(user_id)
+            old_bal_u = float(u_before.get("balance_uzs") or 0.0) if u_before else 0.0
             await self.db.update_user_balance_uzs(user_id, price_uzs)
             await self.db.set_order_status(order_id, "completed")
             user_row = await self.db.get_user(user_id)
             new_bal_uzs = float(user_row.get("balance_uzs") or 0.0) if user_row else price_uzs
+            try:
+                await self.db.record_transaction(
+                    user_id=user_id,
+                    tx_type="card_topup",
+                    amount_uzs=price_uzs,
+                    old_balance_uzs=old_bal_u,
+                    new_balance_uzs=new_bal_uzs,
+                    order_id=order_id,
+                    comment="Karta (Humo/Click) orqali avtomatik to'ldirildi",
+                )
+            except Exception as _e:
+                logger.warning("Tranzaksiya qaydida xatolik: {}", _e)
             try:
                 await self.bot.send_message(
                     user_id,
