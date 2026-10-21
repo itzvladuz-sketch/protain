@@ -800,12 +800,14 @@ async def pay_balance(callback: CallbackQuery, state: FSMContext) -> None:
     rate      = getattr(config, "usd_to_uzs_rate", 12900.0)
     price_uzs = round(price_usd * rate)
 
-    # Prioritize UZS if sufficient, else TON
-    if user_balance_uzs >= price_uzs and price_uzs > 0:
-        await db.update_user_balance_uzs(user.id, -price_uzs)
-    elif user_balance_ton >= price_ton and price_ton > 0:
-        await db.update_user_balance(user.id, -price_ton)
-    else:
+    # Prioritize UZS if sufficient, else TON (atomic double-spend protected)
+    deducted = False
+    if price_uzs > 0 and user_balance_uzs >= price_uzs:
+        deducted = await db.deduct_user_balance_uzs(user.id, price_uzs)
+    elif price_ton > 0 and user_balance_ton >= price_ton:
+        deducted = await db.deduct_user_balance_ton(user.id, price_ton)
+
+    if not deducted:
         bal_str = format_balance(user_balance_uzs, lang, config)
         price_str = format_currency(price_usd, lang, config)
         kb = InlineKeyboardMarkup(inline_keyboard=[

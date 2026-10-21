@@ -249,6 +249,11 @@ class HumoPaymentMonitor:
             return False
 
         order_id = int(order["id"])
+        # ATOMIC ACQUIRE: prevent duplicate/concurrent fulfillment of same order
+        if not await self.db.acquire_pending_order(order_id):
+            logger.info("Buyurtma #{} allaqachon boshqa vazifa tomonidan qabul qilingan", order_id)
+            return False
+
         user_id = int(order["user_id"])
         order_type = str(order.get("order_type") or "stars")
         quantity = int(order.get("quantity") or 1)

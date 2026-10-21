@@ -319,6 +319,38 @@ class Database:
             )
             await db.commit()
 
+    async def deduct_user_balance_uzs(self, user_id: int, amount_uzs: float) -> bool:
+        """Atomically deduct balance_uzs only if balance >= amount_uzs. Returns True if deducted."""
+        if amount_uzs <= 0:
+            return False
+        async with self.connect() as db:
+            cursor = await db.execute(
+                """
+                UPDATE users
+                SET balance_uzs = balance_uzs - ?
+                WHERE user_id = ? AND balance_uzs >= ?
+                """,
+                (amount_uzs, user_id, amount_uzs),
+            )
+            await db.commit()
+            return cursor.rowcount == 1
+
+    async def deduct_user_balance_ton(self, user_id: int, amount_ton: float) -> bool:
+        """Atomically deduct balance_ton only if balance >= amount_ton. Returns True if deducted."""
+        if amount_ton <= 0:
+            return False
+        async with self.connect() as db:
+            cursor = await db.execute(
+                """
+                UPDATE users
+                SET balance_ton = balance_ton - ?
+                WHERE user_id = ? AND balance_ton >= ?
+                """,
+                (amount_ton, user_id, amount_ton),
+            )
+            await db.commit()
+            return cursor.rowcount == 1
+
     async def get_users_with_balance(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Return users with positive balance (UZS or TON), highest balance first."""
         return await self._fetch(
@@ -500,6 +532,16 @@ class Database:
         logger.info("Order #{} -> {}", order_id, status)
 
     set_status = set_order_status
+
+    async def acquire_pending_order(self, order_id: int) -> bool:
+        """Atomically move pending order to processing. Returns True if acquired first (prevents race conditions)."""
+        async with self.connect() as db:
+            cursor = await db.execute(
+                "UPDATE orders SET status = 'processing' WHERE id = ? AND status = 'pending'",
+                (order_id,),
+            )
+            await db.commit()
+            return cursor.rowcount == 1
 
     async def acquire_paid_order(self, order_id: int) -> bool:
         """Atomically move paid order to processing. Returns True if acquired."""
