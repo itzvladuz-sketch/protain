@@ -21,6 +21,7 @@ from locales import t
 from services.config import BotConfig
 from services.db import Database, STATUS_EMOJIS
 from services.icons import ICONS, tg_icon
+from services.ui import safe_answer, safe_edit_text
 
 load_dotenv()
 router = Router()
@@ -55,6 +56,7 @@ class AdminStates(StatesGroup):
     waiting_give_balance_amount = State()
     waiting_take_balance_target = State()
     waiting_take_balance_amount = State()
+    waiting_timeout_minutes = State()
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -78,6 +80,7 @@ def _admin_main_kb() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="Majburiy kanallar", callback_data="adm:channels", icon_custom_emoji_id=ICONS["megaphone"]),
         ],
         [
+            InlineKeyboardButton(text="⏱ Kutish vaqti", callback_data="adm:timeout", icon_custom_emoji_id=ICONS["clock"]),
             InlineKeyboardButton(text="Xabar yuborish", callback_data="adm:broadcast", icon_custom_emoji_id=ICONS["send"]),
         ],
     ])
@@ -480,10 +483,10 @@ async def cmd_user_lookup(message: Message) -> None:
 
 @router.callback_query(F.data == "adm:main")
 async def admin_main(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     await state.clear()
     config = BotConfig.load()
     if not callback.from_user or not await _is_admin(callback.from_user.id, config):
-        await callback.answer()
         return
     await callback.message.edit_text(
         f'{tg_icon("crown", "👑")} <b>Admin Panel</b>\n\nXizmat turini tanlang:',
@@ -497,9 +500,9 @@ async def admin_main(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.callback_query(F.data == "adm:stats")
 async def admin_stats(callback: CallbackQuery) -> None:
+    await safe_answer(callback)
     config = BotConfig.load()
     if not callback.from_user or not await _is_admin(callback.from_user.id, config):
-        await callback.answer()
         return
 
     db = Database(config.database_path)
@@ -525,9 +528,9 @@ async def admin_stats(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "adm:orders")
 async def admin_orders(callback: CallbackQuery) -> None:
+    await safe_answer(callback)
     config = BotConfig.load()
     if not callback.from_user or not await _is_admin(callback.from_user.id, config):
-        await callback.answer()
         return
 
     db = Database(config.database_path)
@@ -585,10 +588,10 @@ async def admin_orders(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("adm:orders:"))
 async def admin_orders_filtered(callback: CallbackQuery) -> None:
+    await safe_answer(callback)
     status = callback.data.split(":", 2)[2]
     config = BotConfig.load()
     if not callback.from_user or not await _is_admin(callback.from_user.id, config):
-        await callback.answer()
         return
 
     db = Database(config.database_path)
@@ -633,9 +636,9 @@ async def admin_orders_filtered(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "adm:prices")
 async def admin_prices(callback: CallbackQuery) -> None:
+    await safe_answer(callback)
     config = BotConfig.load()
     if not callback.from_user or not await _is_admin(callback.from_user.id, config):
-        await callback.answer()
         return
 
     db = Database(config.database_path)
@@ -1651,4 +1654,107 @@ async def adm_gift_mark_done(callback: CallbackQuery) -> None:
         parse_mode="HTML",
     )
     await callback.answer("✅ Bajarildi!")
+
+# ─── Order timeout setting ───────────────────────────────────────────────────
+
+@router.callback_query(F.data == "adm:timeout")
+async def admin_timeout_menu(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
+    await state.clear()
+    config = BotConfig.load()
+    if not callback.from_user or not await _is_admin(callback.from_user.id, config):
+        return
+
+    db = Database(config.database_path)
+    cur_timeout = await db.get_order_timeout_minutes(default=5)
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="⏱ 3 daqiqa", callback_data="adm:set_timeout:3"),
+            InlineKeyboardButton(text="⏱ 5 daqiqa (standart)", callback_data="adm:set_timeout:5"),
+        ],
+        [
+            InlineKeyboardButton(text="⏱ 10 daqiqa", callback_data="adm:set_timeout:10"),
+            InlineKeyboardButton(text="⏱ 15 daqiqa", callback_data="adm:set_timeout:15"),
+        ],
+        [
+            InlineKeyboardButton(text="⏱ 30 daqiqa", callback_data="adm:set_timeout:30"),
+            InlineKeyboardButton(text="✏️ Boshqa vaqt", callback_data="adm:set_timeout:custom"),
+        ],
+        [InlineKeyboardButton(text="◀️ Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
+    ])
+
+    await safe_edit_text(
+        callback.message,
+        f"{tg_icon('clock', '⏱')} <b>To'lov kutish vaqti (taymaut)</b>\n\n"
+        f"Mijoz karta orqali to'lov qilish uchun beriladigan vaqt.\n"
+        f"Ushbu vaqt o'tgach, to'lanmagan buyurtma avtomatik bekor bo'ladi.\n\n"
+        f"⚙️ Hozirgi kutish vaqti: <b>{cur_timeout} daqiqa</b>\n\n"
+        f"<i>O'zgartirish uchun quyidagi tugmalardan birini tanlang yoki o'zingiz kiriting:</i>",
+        reply_markup=kb,
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data.startswith("adm:set_timeout:"))
+async def admin_set_timeout(callback: CallbackQuery, state: FSMContext) -> None:
+    val = callback.data.split(":", 2)[2]
+    config = BotConfig.load()
+    if not callback.from_user or not await _is_admin(callback.from_user.id, config):
+        await safe_answer(callback)
+        return
+
+    db = Database(config.database_path)
+
+    if val == "custom":
+        await safe_answer(callback)
+        await state.set_state(AdminStates.waiting_timeout_minutes)
+        await safe_edit_text(
+            callback.message,
+            f"{tg_icon('pencil', '✏️')} Yangi kutish vaqtini <b>daqiqalarda</b> yozib yuboring (masalan: <code>7</code> yoki <code>20</code>):\n\n"
+            f"<i>Bekor qilish uchun /cancel deb yozing.</i>",
+            reply_markup=_admin_back_kb(),
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        minutes = int(val)
+    except ValueError:
+        await safe_answer(callback, "Noto'g'ri qiymat!", show_alert=True)
+        return
+
+    await db.set_order_timeout_minutes(minutes)
+    await safe_answer(callback, f"✅ Kutish vaqti {minutes} daqiqaga o'rnatildi!", show_alert=True)
+    await admin_timeout_menu(callback, state)
+
+
+@router.message(AdminStates.waiting_timeout_minutes)
+async def admin_save_custom_timeout(message: Message, state: FSMContext) -> None:
+    config = BotConfig.load()
+    if not message.from_user or not await _is_admin(message.from_user.id, config):
+        return
+
+    text = (message.text or "").strip()
+    if text.startswith("/cancel"):
+        await state.clear()
+        await message.answer("Bekor qilindi.", reply_markup=_admin_main_kb())
+        return
+
+    try:
+        minutes = int(text)
+        if minutes < 1 or minutes > 1440:
+            raise ValueError
+    except ValueError:
+        await message.answer("❌ Noto'g'ri son! Iltimos, 1 dan 1440 gacha butun son kiriting:")
+        return
+
+    db = Database(config.database_path)
+    await db.set_order_timeout_minutes(minutes)
+    await state.clear()
+    await message.answer(
+        f"✅ <b>To'lov kutish vaqti muvaffaqiyatli saqlandi:</b> {minutes} daqiqa!",
+        reply_markup=_admin_main_kb(),
+        parse_mode="HTML",
+    )
 

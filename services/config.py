@@ -154,7 +154,7 @@ class BotConfig:
             toncenter_api_key=os.getenv("TONCENTER_API_KEY") or os.getenv("TONAPI_KEY"),
             min_stars_amount=max(50, _int("MIN_STARS_AMOUNT", 50)),
             max_stars_amount=_int("MAX_STARS_AMOUNT", 50_000),
-            order_timeout_minutes=_int("ORDER_TIMEOUT_MINUTES", 15),
+            order_timeout_minutes=_int("ORDER_TIMEOUT_MINUTES", 5),
             service_commission_percent=_float("SERVICE_COMMISSION_PERCENT", 3.0),
             usd_rub_rate=_float("USD_RUB_RATE", 100.0),
             enable_freekassa=_bool("ENABLE_FREEKASSA", False),

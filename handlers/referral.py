@@ -19,6 +19,7 @@ from services.config import BotConfig
 from services.db import Database
 from services.subscription import check_subscription, build_sub_keyboard
 from services.icons import ICONS, tg_icon
+from services.ui import safe_answer, safe_edit_text
 
 router = Router()
 
@@ -44,8 +45,11 @@ def _claim_recipient_kb(lang: str) -> InlineKeyboardMarkup:
     ])
 
 
+_CACHED_BOT_USERNAME: Optional[str] = None
+
 @router.callback_query(F.data == "menu:referral")
 async def menu_referral(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     await state.clear()
     config = BotConfig.load()
     db = Database(config.database_path)
@@ -56,8 +60,11 @@ async def menu_referral(callback: CallbackQuery, state: FSMContext) -> None:
     db_user = await db.get_or_create_user(user.id, user.username)
     lang = db_user.get("lang", "uz")
 
-    bot_info = await callback.bot.get_me()
-    bot_username = bot_info.username or "bot"
+    global _CACHED_BOT_USERNAME
+    if not _CACHED_BOT_USERNAME:
+        bot_info = await callback.bot.get_me()
+        _CACHED_BOT_USERNAME = bot_info.username or "bot"
+    bot_username = _CACHED_BOT_USERNAME
     ref_link = f"https://t.me/{bot_username}?start=ref{user.id}"
 
     ref_count = int(db_user.get("referral_count") or 0)
@@ -70,12 +77,12 @@ async def menu_referral(callback: CallbackQuery, state: FSMContext) -> None:
         ref_count=ref_count,
         ref_stars=ref_stars,
     )
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback.message,
         text,
         reply_markup=_referral_kb(lang, bot_username, user.id),
         parse_mode="HTML",
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "ref:claim_gift")

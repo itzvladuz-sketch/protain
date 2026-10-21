@@ -22,6 +22,7 @@ from services.fragment_api import FragmentAPIService
 from services.currency import format_currency, format_balance
 from services.ton import TONService
 from services.icons import ICONS, tg_icon
+from services.ui import safe_answer, safe_edit_text
 
 load_dotenv()
 router = Router()
@@ -75,15 +76,10 @@ def _recipient_kb(lang: str) -> InlineKeyboardMarkup:
 
 
 def _payment_kb(lang: str, order_id: int, payment_type: str = "humo") -> InlineKeyboardMarkup:
-    buttons = []
-    if payment_type == "click":
-        buttons.append([InlineKeyboardButton(
-            text=f"📲 Click (@clickuz) da to'lash",
-            url="https://t.me/clickuz",
-            icon_custom_emoji_id=ICONS["card"],
-        )])
-    buttons.append([InlineKeyboardButton(text=t(lang, "btn_check_payment"), callback_data=f"check:{order_id}", icon_custom_emoji_id=ICONS["check"])])
-    buttons.append([InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main", icon_custom_emoji_id=ICONS["cancel"])])
+    buttons = [
+        [InlineKeyboardButton(text=t(lang, "btn_check_payment"), callback_data=f"check:{order_id}", icon_custom_emoji_id=ICONS["check"])],
+        [InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="back:main", icon_custom_emoji_id=ICONS["cancel"])],
+    ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -223,6 +219,7 @@ async def _notify_admin_new_order(
 
 @router.callback_query(F.data == "balance:topup")
 async def balance_topup(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     config = BotConfig.load()
     db = Database(config.database_path)
     user = callback.from_user
@@ -233,23 +230,23 @@ async def balance_topup(callback: CallbackQuery, state: FSMContext) -> None:
     lang = db_user.get("lang", "uz")
 
     await state.set_state(TopupFlow.waiting_amount)
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback.message,
         t(lang, "balance_topup_menu"),
         reply_markup=_topup_presets_kb(lang),
         parse_mode="HTML",
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("topup_amt:"), TopupFlow.waiting_amount)
 async def topup_preset_chosen(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     raw = callback.data.split(":", 1)[1]
     try:
         amt = float(raw)
     except ValueError:
         return
     await _show_topup_method_choice(callback.message, callback.from_user, amt, state)
-    await callback.answer()
 
 
 @router.message(TopupFlow.waiting_amount)
@@ -318,7 +315,8 @@ async def _create_card_topup_order(target: Message, user, amt: float, pay_type: 
 
     rate = getattr(config, "usd_to_uzs_rate", 12900.0)
     final_amt = float(int(amt))
-    expires_at = datetime.now() + timedelta(minutes=30)
+    timeout_min = await db.get_order_timeout_minutes(default=getattr(config, "order_timeout_minutes", 5))
+    expires_at = datetime.now() + timedelta(minutes=timeout_min)
 
     if pay_type == "click":
         card_num = config.click_card_number or "8801 9102 6669 7252"
@@ -350,7 +348,8 @@ async def _create_card_topup_order(target: Message, user, amt: float, pay_type: 
     text = t(lang, instr_key,
              card_number=card_num,
              card_holder=card_holder,
-             amount=int(final_amt))
+             amount=int(final_amt),
+             timeout=timeout_min)
     try:
         await target.edit_text(text, reply_markup=_payment_kb(lang, order_id, payment_type=pay_type), parse_mode="HTML")
     except Exception:
@@ -364,6 +363,7 @@ async def _create_card_topup_order(target: Message, user, amt: float, pay_type: 
 
 @router.callback_query(F.data == "menu:stars")
 async def stars_menu(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     await state.clear()
     config = BotConfig.load()
     db = Database(config.database_path)
@@ -376,25 +376,25 @@ async def stars_menu(callback: CallbackQuery, state: FSMContext) -> None:
     price_row = await db.get_price("stars")
 
     if not price_row or not price_row.get("is_active"):
-        await callback.message.edit_text(t(lang, "error_general"), reply_markup=_back_kb(lang), parse_mode="HTML")
-        await callback.answer()
+        await safe_edit_text(callback.message, t(lang, "error_general"), reply_markup=_back_kb(lang), parse_mode="HTML")
         return
 
     await state.update_data(service="stars")
     await state.set_state(OrderFlow.enter_recipient)
 
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback.message,
         t(lang, "stars_menu"),
         reply_markup=_recipient_kb(lang),
         parse_mode="HTML",
     )
-    await callback.answer()
 
 
 # ─── Premium flow ─────────────────────────────────────────────────────────────
 
 @router.callback_query(F.data == "menu:premium")
 async def premium_menu(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     await state.clear()
     config = BotConfig.load()
     db = Database(config.database_path)
@@ -431,16 +431,17 @@ async def premium_menu(callback: CallbackQuery, state: FSMContext) -> None:
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])])
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
 
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback.message,
         t(lang, "premium_menu"),
         reply_markup=kb,
         parse_mode="HTML",
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("premium:"))
 async def premium_selected(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     svc = callback.data.split(":", 1)[1]
     config = BotConfig.load()
     db = Database(config.database_path)
@@ -455,18 +456,19 @@ async def premium_selected(callback: CallbackQuery, state: FSMContext) -> None:
     await state.update_data(service=svc, quantity=dur_months)
     await state.set_state(OrderFlow.enter_recipient)
 
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback.message,
         t(lang, "enter_recipient"),
         reply_markup=_recipient_kb(lang),
         parse_mode="HTML",
     )
-    await callback.answer()
 
 
 # ─── Gift flow (2 ta ustun, 100 Stars gacha) ──────────────────────────────────
 
 @router.callback_query(F.data == "menu:gift")
 async def gift_menu(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     await state.clear()
     config = BotConfig.load()
     db = Database(config.database_path)
@@ -507,16 +509,17 @@ async def gift_menu(callback: CallbackQuery, state: FSMContext) -> None:
     keyboard.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])])
     kb = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback.message,
         t(lang, "gift_menu"),
         reply_markup=kb,
         parse_mode="HTML",
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("gift:"))
 async def gift_selected(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     svc = callback.data.split(":", 1)[1]
     config = BotConfig.load()
     db = Database(config.database_path)
@@ -538,12 +541,12 @@ async def gift_selected(callback: CallbackQuery, state: FSMContext) -> None:
     await state.update_data(service=svc, quantity=amt, gift_name=name)
     await state.set_state(OrderFlow.enter_recipient)
 
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback.message,
         t(lang, "enter_recipient"),
         reply_markup=_recipient_kb(lang),
         parse_mode="HTML",
     )
-    await callback.answer()
 
 
 # ─── Recipient self (O'zimga) ─────────────────────────────────────────────────
@@ -560,8 +563,9 @@ async def recipient_self(callback: CallbackQuery, state: FSMContext) -> None:
     lang = db_user.get("lang", "uz")
 
     if not user.username:
-        await callback.answer(t(lang, "no_username_set"), show_alert=True)
+        await safe_answer(callback, t(lang, "no_username_set"), show_alert=True)
         return
+    await safe_answer(callback)
 
     username = user.username
     await state.update_data(recipient=username)
@@ -630,6 +634,7 @@ async def enter_recipient(message: Message, state: FSMContext) -> None:
 
 @router.callback_query(F.data.startswith("stars_qty:"), OrderFlow.enter_quantity)
 async def stars_qty_selected(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     val = callback.data.split(":", 1)[1]
     config = BotConfig.load()
     db = Database(config.database_path)
@@ -902,11 +907,13 @@ async def pay_balance(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.callback_query(F.data == "pay:humo", OrderFlow.confirm_order)
 async def pay_humo(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     await _create_service_card_order(callback, state, "humo")
 
 
 @router.callback_query(F.data == "pay:click", OrderFlow.confirm_order)
 async def pay_click(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     await _create_service_card_order(callback, state, "click")
 
 
@@ -930,8 +937,8 @@ async def _create_service_card_order(callback: CallbackQuery, state: FSMContext,
     rate = getattr(config, "usd_to_uzs_rate", 12900.0)
     price_uzs = float(round(price_usd * rate))
 
-    # 30 minutes expiry
-    expires_at = datetime.now() + timedelta(minutes=30)
+    timeout_min = await db.get_order_timeout_minutes(default=getattr(config, "order_timeout_minutes", 5))
+    expires_at = datetime.now() + timedelta(minutes=timeout_min)
 
     if service == "stars":
         order_type = "stars"
@@ -968,11 +975,13 @@ async def _create_service_card_order(callback: CallbackQuery, state: FSMContext,
     await state.update_data(order_id=order_id)
     await state.set_state(OrderFlow.waiting_payment)
 
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback.message,
         t(lang, instr_key,
           card_number=card_num,
           card_holder=card_holder,
-          amount=int(price_uzs)),
+          amount=int(price_uzs),
+          timeout=timeout_min),
         reply_markup=_payment_kb(lang, order_id, payment_type=pay_type),
         parse_mode="HTML",
     )

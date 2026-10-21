@@ -19,8 +19,8 @@ import time
 _CHANNELS_CACHE: Optional[List[Dict[str, Any]]] = None
 _CHANNELS_CACHE_TIME: float = 0.0
 _USER_SUB_CACHE: Dict[int, float] = {}  # user_id -> timestamp when confirmed subscribed
-SUB_CACHE_TTL = 120.0  # 2 minutes cache for confirmed subscriptions
-CHANNELS_CACHE_TTL = 60.0  # 1 minute cache for mandatory channel list
+SUB_CACHE_TTL = 900.0  # 15 minutes cache for confirmed subscriptions (prevents button lag)
+CHANNELS_CACHE_TTL = 300.0  # 5 minutes cache for mandatory channel list
 
 
 def invalidate_subscription_cache(user_id: Optional[int] = None) -> None:
@@ -148,6 +148,7 @@ class SubscriptionMiddleware(BaseMiddleware):
                 or data_val.startswith("set_lang:")
                 or data_val.startswith("adm:")
                 or data_val.startswith("del_ch:")
+                or data_val.startswith("back:main")
             ):
                 return await handler(event, data)
 

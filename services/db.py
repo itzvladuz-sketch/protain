@@ -619,6 +619,16 @@ class Database:
             )
             await db.commit()
 
+    async def get_order_timeout_minutes(self, default: int = 5) -> int:
+        val = await self.get_setting("order_timeout_minutes", str(default))
+        try:
+            return max(1, int(val or default))
+        except (ValueError, TypeError):
+            return default
+
+    async def set_order_timeout_minutes(self, minutes: int) -> None:
+        await self.set_setting("order_timeout_minutes", str(max(1, minutes)))
+
     # ─── Broadcasts ──────────────────────────────────────────────────────────
 
     async def log_broadcast(self, admin_id: int, text: str, sent: int, failed: int) -> None:

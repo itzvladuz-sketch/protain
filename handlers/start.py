@@ -17,6 +17,7 @@ from locales import t
 from services.config import BotConfig
 from services.db import STATUS_EMOJIS, Database
 from services.icons import ICONS, tg_icon
+from services.ui import safe_answer, safe_edit_text
 
 load_dotenv()
 router = Router()
@@ -173,23 +174,24 @@ async def set_lang(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.callback_query(F.data == "menu:language")
 async def menu_language(callback: CallbackQuery) -> None:
-    await callback.message.edit_text(
+    await safe_answer(callback)
+    await safe_edit_text(
+        callback.message,
         t("uz", "lang_select"),
         reply_markup=_lang_keyboard(),
         parse_mode="HTML",
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "menu:balance")
 async def menu_balance(callback: CallbackQuery) -> None:
+    await safe_answer(callback)
     config = BotConfig.load()
     db = Database(config.database_path)
     user = callback.from_user
     if not user:
         return
 
-    # Fresh balans uchun get_user ishlatamiz
     db_user = await db.get_user(user.id)
     if not db_user:
         db_user = await db.get_or_create_user(user.id, user.username)
@@ -204,12 +206,12 @@ async def menu_balance(callback: CallbackQuery) -> None:
         [InlineKeyboardButton(text=t(lang, "btn_back"),  callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
     user_num = db_user.get("id", 1)
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback.message,
         t(lang, "balance_info", balance=formatted_bal, balance_uzs=int(balance_uzs), user_num=user_num),
         reply_markup=balance_kb,
         parse_mode="HTML",
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "menu:help")
@@ -332,6 +334,7 @@ async def menu_orders(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "back:main")
 async def back_to_main(callback: CallbackQuery, state: FSMContext) -> None:
+    await safe_answer(callback)
     data = await state.get_data()
     order_id = data.get("order_id")
     await state.clear()
@@ -340,7 +343,6 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext) -> None:
     if order_id:
         try:
             order = await db.get_order(int(order_id))
-            # Faqat to'lanmagan (pending) oddiy buyurtmalarni bekor qilamiz
             if order and order.get("status") == "pending" and order.get("order_type") != "topup":
                 await db.set_order_status(int(order_id), "cancelled")
         except Exception:
@@ -349,12 +351,10 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext) -> None:
     if not user:
         return
 
-    # Har doim DB dan yangi balans o'qiymiz
     db_user = await db.get_user(user.id)
     if not db_user:
         db_user = await db.get_or_create_user(user.id, user.username)
     else:
-        # username yangilash
         if user.username:
             await db.get_or_create_user(user.id, user.username)
 
@@ -364,9 +364,9 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext) -> None:
     bal_str = format_balance(float(db_user.get("balance_uzs") or 0.0), lang, config)
     name = f"@{user.username}" if user.username else (user.full_name or "Foydalanuvchi")
 
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback.message,
         t(lang, "main_menu", name=name, user_num=user_num, balance=bal_str),
         reply_markup=_main_menu_keyboard(lang),
         parse_mode="HTML",
     )
-    await callback.answer()
