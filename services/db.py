@@ -10,6 +10,8 @@ Tables:
 
 from __future__ import annotations
 
+import asyncio
+
 from contextlib import asynccontextmanager
 from datetime import datetime, date
 from typing import Any, AsyncIterator, Dict, Iterable, List, Optional
@@ -58,14 +60,38 @@ class Database:
 
     def __init__(self, db_path: str):
         self.db_path = db_path
+        self._shared_conn: Optional[aiosqlite.Connection] = None
+        self._lock: Optional[asyncio.Lock] = None
+
+    def _get_lock(self) -> asyncio.Lock:
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
 
     @asynccontextmanager
     async def connect(self) -> AsyncIterator[aiosqlite.Connection]:
-        """Provide SQLite connection configured with WAL and 30s busy timeout to prevent locks."""
-        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
-            await db.execute("PRAGMA busy_timeout = 30000;")
-            await db.execute("PRAGMA synchronous = NORMAL;")
-            yield db
+        """Provide persistent SQLite connection with asyncio lock, WAL mode, and zero connection overhead."""
+        lock = self._get_lock()
+        async with lock:
+            if self._shared_conn is None:
+                self._shared_conn = await aiosqlite.connect(self.db_path, timeout=60.0)
+                await self._shared_conn.execute("PRAGMA busy_timeout = 60000;")
+                await self._shared_conn.execute("PRAGMA journal_mode = WAL;")
+                await self._shared_conn.execute("PRAGMA synchronous = NORMAL;")
+                await self._shared_conn.execute("PRAGMA cache_size = 10000;")
+                await self._shared_conn.execute("PRAGMA temp_store = MEMORY;")
+            yield self._shared_conn
+
+    async def close(self) -> None:
+        """Close persistent SQLite connection."""
+        lock = self._get_lock()
+        async with lock:
+            if self._shared_conn is not None:
+                try:
+                    await self._shared_conn.close()
+                except Exception:
+                    pass
+                self._shared_conn = None
 
     # ─── Init ────────────────────────────────────────────────────────────────
 
