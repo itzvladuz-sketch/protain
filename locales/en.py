@@ -66,7 +66,7 @@ TEXTS: dict = {
     ),
     "order_summary_premium": (
         '<tg-emoji emoji-id="5886330010054168711">📋</tg-emoji> <b>Order:</b>\n\n'
-        '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> <b>Premium ({duration})</b> ➔ @{recipient}\n'
+        '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> <b>Premium ({duration})</b> ➔ @{recipient}\n'
         '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Price: <b>{price}</b>\n'
         '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Your balance: <b>{balance}</b>\n'
         "{discount_line}"
@@ -82,7 +82,7 @@ TEXTS: dict = {
 
     # Premium
     "premium_menu": (
-        '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> <b>Telegram Premium</b>\n\n'
+        '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> <b>Telegram Premium</b>\n\n'
         "Select duration:"
     ),
 
@@ -160,7 +160,7 @@ TEXTS: dict = {
     "status_expired":    "Expired",
 
     "type_stars":   '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> Stars',
-    "type_premium": '<tg-emoji emoji-id="5807868868886009920">👑</tg-emoji> Premium',
+    "type_premium": '<tg-emoji emoji-id="5958376256788502078">⭐</tg-emoji> Premium',
     "type_gift":    '<tg-emoji emoji-id="6032937473162614352">🎁</tg-emoji> Gift',
     "type_topup":   '<tg-emoji emoji-id="5769403330761593044">👛</tg-emoji> Topup',
 
@@ -171,10 +171,10 @@ TEXTS: dict = {
 
     # Admin panel
     "admin_service_name_stars":      "⭐ Stars ($ / pc)",
-    "admin_service_name_premium_1m": "👑 Premium 1 mo",
-    "admin_service_name_premium_3m": "👑 Premium 3 mo",
-    "admin_service_name_premium_6m": "👑 Premium 6 mo",
-    "admin_service_name_premium_12m":"👑 Premium 12 mo",
+    "admin_service_name_premium_1m": "⭐ Premium 1 mo",
+    "admin_service_name_premium_3m": "⭐ Premium 3 mo",
+    "admin_service_name_premium_6m": "⭐ Premium 6 mo",
+    "admin_service_name_premium_12m":"⭐ Premium 12 mo",
     "admin_service_name_gift_50":    "🎁 Gift 50 Stars",
     "admin_service_name_gift_100":   "🎁 Gift 100 Stars",
     "admin_service_name_gift_150":   "🎁 Gift 150 Stars",

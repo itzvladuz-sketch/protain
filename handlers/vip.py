@@ -252,7 +252,7 @@ async def vip_pay_from_balance(callback: CallbackQuery) -> None:
         try:
             await callback.bot.send_message(
                 adm_id,
-                f"👑 <b>Yangi VIP obuna xarid qilindi!</b>\n\n"
+                f"⭐ <b>Yangi Premium obuna xarid qilindi!</b>\n\n"
                 f"👤 Foydalanuvchi: @{user.username or 'yoq'} (<code>{user.id}</code>)\n"
                 f"⚡ Tarif: <b>{plan['name']}</b>\n"
                 f"💵 Summa: <b>{int(price_uzs):,} so'm</b> (Balansdan)\n"

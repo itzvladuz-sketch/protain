@@ -2267,7 +2267,7 @@ async def admin_toggle_vip_prompt(callback: CallbackQuery) -> None:
     text = (
         f"{tg_icon('star', '⭐')} <b>Foydalanuvchiga VIP berish / bekor qilish</b>\n\n"
         f"👤 Foydalanuvchi: <b>@{user.get('username') or 'yoq'}</b> (<code>{user_id}</code>)\n"
-        f"👑 Hozirgi VIP holati: <b>{cur_status}</b>\n\n"
+        f"⭐ Hozirgi VIP holati: <b>{cur_status}</b>\n\n"
         f"Qancha muddatga VIP bermoqchisiz?"
     )
 

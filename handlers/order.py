@@ -450,7 +450,8 @@ async def premium_menu(callback: CallbackQuery, state: FSMContext) -> None:
             buttons.append([InlineKeyboardButton(
                 text=f"{dur} — {price_str}{disc_badge}",
                 callback_data=f"premium:{svc}",
-                icon_custom_emoji_id=ICONS["diamond"],
+                icon_custom_emoji_id=ICONS["star"],
+                style="primary",
             )])
 
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])])
