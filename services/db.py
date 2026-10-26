@@ -1184,7 +1184,7 @@ class Database:
             },
             "vip_15d": {
                 "key": "vip_15d",
-                "name": "👑 15 Kunlik VIP Pass",
+                "name": "⭐ 15 Kunlik Premium Pass",
                 "days": 15,
                 "price_uzs": p15_val,
                 "price_usd": round(p15_val / 12900, 2),

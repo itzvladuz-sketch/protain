@@ -73,7 +73,7 @@ def _admin_main_kb() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="Foydalanuvchilar", callback_data="adm:users", icon_custom_emoji_id=ICONS["users"]),
         ],
         [
-            InlineKeyboardButton(text="👑 VIP Obunalar", callback_data="adm:vips", icon_custom_emoji_id=ICONS["crown"]),
+            InlineKeyboardButton(text="⭐ Premium Obunalar", callback_data="adm:vips", icon_custom_emoji_id=ICONS["star"], style="primary"),
             InlineKeyboardButton(text="💳 Moliya & Hisobot", callback_data="adm:finances", icon_custom_emoji_id=ICONS["money"]),
         ],
         [
@@ -110,7 +110,7 @@ def _user_card_kb(user_id: int, is_banned: bool) -> InlineKeyboardMarkup:
             ban_btn,
         ],
         [
-            InlineKeyboardButton(text="👑 VIP berish / bekor qilish", callback_data=f"adm:toggle_vip:{user_id}", icon_custom_emoji_id=ICONS["crown"]),
+            InlineKeyboardButton(text="⭐ Premium berish / bekor qilish", callback_data=f"adm:toggle_vip:{user_id}", icon_custom_emoji_id=ICONS["star"]),
             InlineKeyboardButton(text="📜 Tranzaksiyalar tarixi", callback_data=f"adm:user_tx:{user_id}", icon_custom_emoji_id=ICONS["orders"]),
         ],
         [
@@ -159,7 +159,7 @@ def _render_user_card(user: dict, orders_count: int, fin: Optional[dict] = None)
         f'{tg_icon("wallet", "💰")} Balans: <b>{bal_uzs:,} so\'m</b>\n'
         f'{tg_icon("diamond", "💎")} TON Balans: {bal_ton:.4f} TON\n'
         f"{fin_block}"
-        f'{tg_icon("crown", "👑")} VIP Tarif: {vip_status}\n'
+        f'{tg_icon("star", "⭐")} Premium Tarif: {vip_status}\n'
         f'{tg_icon("ban", "🚫")} Bloklangan: {banned}\n'
         f'{tg_icon("calendar", "📅")} Ro\'yxatdan: {date_str}\n'
         f'{tg_icon("orders", "📋")} Buyurtmalar: {orders_count} ta'
@@ -2219,14 +2219,14 @@ async def admin_vip_management(callback: CallbackQuery) -> None:
     p15 = plans["vip_15d"]
 
     lines = [
-        f"{tg_icon('crown', '👑')} <b>VIP Optom Tariflar Nazorati</b>\n",
+        f"{tg_icon('star', '⭐')} <b>VIP Optom Tariflar Nazorati</b>\n",
         f"👥 <b>Faol VIP a'zolar:</b> <code>{stats['active_vip_count']}</code> ta",
         f"💰 <b>Jami VIP tushumi:</b> <code>{int(stats['total_vip_revenue']):,} so'm</code>",
         f"📦 <b>Jami sotilgan VIP:</b> <code>{stats['total_vip_sold']}</code> ta\n",
         f"🏷 <b>Joriy tarif narxlari:</b>",
         f"• ⚡ 1 kunlik: <b>{int(p1['price_uzs']):,} so'm</b>",
         f"• 📅 7 kunlik: <b>{int(p7['price_uzs']):,} so'm</b>",
-        f"• 👑 15 kunlik: <b>{int(p15['price_uzs']):,} so'm</b>\n",
+        f"• ⭐ 15 kunlik: <b>{int(p15['price_uzs']):,} so'm</b>\n",
     ]
 
     if active_users:
@@ -2265,7 +2265,7 @@ async def admin_toggle_vip_prompt(callback: CallbackQuery) -> None:
     cur_status = f"Faol ({vip_info['vip_until']} gacha)" if vip_info["is_vip"] else "Yo'q"
 
     text = (
-        f"{tg_icon('crown', '👑')} <b>Foydalanuvchiga VIP berish / bekor qilish</b>\n\n"
+        f"{tg_icon('star', '⭐')} <b>Foydalanuvchiga VIP berish / bekor qilish</b>\n\n"
         f"👤 Foydalanuvchi: <b>@{user.get('username') or 'yoq'}</b> (<code>{user_id}</code>)\n"
         f"👑 Hozirgi VIP holati: <b>{cur_status}</b>\n\n"
         f"Qancha muddatga VIP bermoqchisiz?"
@@ -2275,7 +2275,7 @@ async def admin_toggle_vip_prompt(callback: CallbackQuery) -> None:
         [
             InlineKeyboardButton(text="⚡ +1 kun", callback_data=f"adm:act_vip:{user_id}:1"),
             InlineKeyboardButton(text="📅 +7 kun", callback_data=f"adm:act_vip:{user_id}:7"),
-            InlineKeyboardButton(text="👑 +15 kun", callback_data=f"adm:act_vip:{user_id}:15"),
+            InlineKeyboardButton(text="⭐ +15 kun", callback_data=f"adm:act_vip:{user_id}:15"),
         ],
         [
             InlineKeyboardButton(text="🌟 +30 kun", callback_data=f"adm:act_vip:{user_id}:30"),

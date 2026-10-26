@@ -362,8 +362,8 @@ class HumoPaymentMonitor:
             try:
                 await self.bot.send_message(
                     user_id,
-                    f"🎉 <b>VIP Optom Tarif muvaffaqiyatli faollashtirildi!</b>\n\n"
-                    f"👑 Tarif: <b>{days} kunlik VIP Pass</b>\n"
+                    f"🎉 <b>Premium Optom Tarif muvaffaqiyatli faollashtirildi!</b>\n\n"
+                    f"⭐ Tarif: <b>{days} kunlik VIP Pass</b>\n"
                     f"📅 Amal qilish muddati: <b>{vip_exp[:16]}</b> gacha\n"
                     f"💰 To'landi: <b>{int(price_uzs):,} so'm</b>\n\n"
                     f"🌟 <i>Endi botdagi barcha Stars va xizmatlar siz uchun 0% komissiyada (o'z tannarxida) taqdim etiladi!</i>",
@@ -376,7 +376,7 @@ class HumoPaymentMonitor:
                 try:
                     await self.bot.send_message(
                         adm_id,
-                        f"👑 <b>Yangi VIP obuna xarid qilindi!</b>\n\n"
+                        f"⭐ <b>Yangi Premium obuna xarid qilindi!</b>\n\n"
                         f"👤 Foydalanuvchi: <code>{user_id}</code> (@{username or 'yoq'})\n"
                         f"⚡ Tarif: <b>{days} kunlik VIP</b>\n"
                         f"💵 Summa: <b>{int(price_uzs):,} so'm</b>\n"

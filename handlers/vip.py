@@ -43,7 +43,7 @@ async def vip_menu(callback: CallbackQuery, state: FSMContext) -> None:
     if vip_info["is_vip"]:
         # User is already active VIP
         text = (
-            f"{tg_icon('crown', '👑')} <b>Sizning VIP Optom Tarifingiz FAOL!</b>\n\n"
+            f"{tg_icon('star', '⭐')} <b>Sizning VIP Optom Tarifingiz FAOL!</b>\n\n"
             f"📅 <b>Amal qilish muddati:</b> <code>{vip_info['vip_until']}</code> gacha\n"
             f"⏱ <b>Qolgan vaqt:</b> <b>{vip_info['days_left']} kun, {vip_info['hours_left']} soat</b>\n\n"
             f"🌟 <b>Sizning VIP imtiyozlaringiz:</b>\n"
@@ -54,7 +54,7 @@ async def vip_menu(callback: CallbackQuery, state: FSMContext) -> None:
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⭐ Stars xarid qilish (0%)", callback_data="menu:stars", icon_custom_emoji_id=ICONS["star"])],
-            [InlineKeyboardButton(text="🔄 Obunani uzaytirish", callback_data="vip:extend", icon_custom_emoji_id=ICONS["crown"])],
+            [InlineKeyboardButton(text="🔄 Obunani uzaytirish", callback_data="vip:extend", icon_custom_emoji_id=ICONS["star"])],
             [InlineKeyboardButton(text="🔙 Asosiy menyu", callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
         ])
         await safe_edit_text(callback.message, text, reply_markup=kb, parse_mode="HTML")
@@ -78,14 +78,14 @@ async def _show_vip_plans(target: Message, plans: dict, is_extend: bool = False)
     p7 = plans["vip_7d"]
     p15 = plans["vip_15d"]
 
-    title = "🔄 <b>VIP Obunani Uzaytirish</b>" if is_extend else f"{tg_icon('crown', '👑')} <b>VIP Optom Tarif — Starsni Tannarxida Oling!</b>"
+    title = "🔄 <b>VIP Obunani Uzaytirish</b>" if is_extend else f"{tg_icon('star', '⭐')} <b>VIP Optom Tarif — Starsni Tannarxida Oling!</b>"
 
     text = (
         f"{title}\n\n"
         f"VIP tarif orqali Telegram Stars va boshqa xizmatlarni <b>0% komissiya bilan</b>, rasmiy Fragment tannarxida olasiz!\n\n"
         f"📊 <b>Narxlar solishtiruvi:</b>\n"
         f"• Oddiy foydalanuvchiga: <code>50 Stars = 10,499 so'm</code>\n"
-        f"• 👑 VIP a'zolariga: <b>50 Stars = 9,675 so'm</b> (~193.5 so'mdan)\n\n"
+        f"• ⭐ Premium a'zolariga: <b>50 Stars = 9,675 so'm</b> (~193.5 so'mdan)\n\n"
         f"💡 <i>Atigi 600-1000 ta Stars olganingizdayoq VIP pass puli o'zini to'liq oqlaydi va siz toza foydadasiz!</i>\n\n"
         f"Quyidagi qulay tariflardan birini tanlang:"
     )
@@ -102,9 +102,9 @@ async def _show_vip_plans(target: Message, plans: dict, is_extend: bool = False)
             icon_custom_emoji_id=ICONS["diamond"]
         )],
         [InlineKeyboardButton(
-            text=f"👑 15 kunlik — {int(p15['price_uzs']):,} so'm (70% super)",
+            text=f"⭐ 15 kunlik — {int(p15['price_uzs']):,} so'm (70% super)",
             callback_data="vip_plan:vip_15d",
-            icon_custom_emoji_id=ICONS["crown"]
+            icon_custom_emoji_id=ICONS["star"]
         )],
         [InlineKeyboardButton(text="🔙 Asosiy menyu", callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
@@ -130,7 +130,7 @@ async def vip_plan_selected(callback: CallbackQuery) -> None:
     price_uzs = plan["price_uzs"]
 
     text = (
-        f"{tg_icon('crown', '👑')} <b>{plan['name']}</b>\n\n"
+        f"{tg_icon('star', '⭐')} <b>{plan['name']}</b>\n\n"
         f"💰 <b>Tarif narxi:</b> <code>{int(price_uzs):,} so'm</code>\n"
         f"⏱ <b>Amal qilish muddati:</b> <b>{plan['days']} kun</b> ({plan['badge']})\n"
         f"🎁 <b>Imtiyoz:</b> Barcha Telegram Stars 0% komissiyada (tannarxida)!\n"
@@ -234,7 +234,7 @@ async def vip_pay_from_balance(callback: CallbackQuery) -> None:
 
     text = (
         f"🎉 <b>TABRIKLAYMIZ! VIP Optom Tarif FAOL!</b>\n\n"
-        f"👑 Tarif: <b>{plan['name']}</b>\n"
+        f"⭐ Tarif: <b>{plan['name']}</b>\n"
         f"📅 Amal qilish muddati: <b>{vip_exp[:16]}</b> gacha\n"
         f"💰 Yechildi: <b>{int(price_uzs):,} so'm</b>\n\n"
         f"🌟 <i>Endi botdagi barcha Stars siz uchun 0% komissiyada (o'z tannarxida) beriladi. Hoziroq xarid qilib foydani his eting!</i>"
@@ -305,7 +305,7 @@ async def vip_pay_card(callback: CallbackQuery) -> None:
     pay_name = "Humo" if pay_type == "humo" else "Click"
     text = (
         f"{tg_icon('card', '💳')} <b>{pay_name} orqali to'lov</b>\n\n"
-        f"👑 Tarif: <b>{plan['name']}</b> ({plan['days']} kun)\n"
+        f"⭐ Tarif: <b>{plan['name']}</b> ({plan['days']} kun)\n"
         f"💰 To'lov summasi: <b>{int(price_uzs):,} so'm</b>\n\n"
         f"💳 Karta raqami: <code>{card_num}</code>\n"
         f"👤 Karta egasi: <b>{card_holder}</b>\n\n"

@@ -160,11 +160,11 @@ async def _stars_presets_kb(lang: str, config: BotConfig, db: Database, user_id:
     keyboard = []
     if is_vip:
         keyboard.append([
-            InlineKeyboardButton(text="👑 VIP Tarif: 0% Komissiya (Faol)", callback_data="menu:vip", icon_custom_emoji_id=ICONS["crown"])
+            InlineKeyboardButton(text="⭐ Premium Tarif: 0% Komissiya (Faol)", callback_data="menu:vip", icon_custom_emoji_id=ICONS["star"], style="primary")
         ])
     else:
         keyboard.append([
-            InlineKeyboardButton(text="👑 VIP Optom Tarifga ulanish (0%)", callback_data="menu:vip", icon_custom_emoji_id=ICONS["crown"])
+            InlineKeyboardButton(text="⭐ Premium Optom Tarifga ulanish (0%)", callback_data="menu:vip", icon_custom_emoji_id=ICONS["star"], style="primary")
         ])
 
     row = []
@@ -684,7 +684,7 @@ async def stars_qty_selected(callback: CallbackQuery, state: FSMContext) -> None
     qty = int(val)
     await state.update_data(quantity=qty)
     if prices.get("is_vip"):
-        summary += "\n👑 <b>VIP Imtiyoz:</b> 0% Komissiya (Tannarxida)!"
+        summary += "\n⭐ <b>Premium Imtiyoz:</b> 0% Komissiya (Tannarxida)!"
     await state.set_state(OrderFlow.confirm_order)
     await _show_order_summary(callback.message, state, lang, config, user_id=user.id)
     await callback.answer()

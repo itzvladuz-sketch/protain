@@ -40,10 +40,10 @@ def _lang_keyboard() -> InlineKeyboardMarkup:
 
 
 def _main_menu_keyboard(lang: str, is_vip: bool = False) -> InlineKeyboardMarkup:
-    vip_btn_text = "👑 VIP Tarif: Faol (0%)" if is_vip else "👑 VIP Optom Tarif (0%)"
+    vip_btn_text = "⭐ Premium Tarif: Faol (0%)" if is_vip else "⭐ Premium Optom Tarif (0%)"
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text=vip_btn_text, callback_data="menu:vip", icon_custom_emoji_id=ICONS["crown"]),
+            InlineKeyboardButton(text=vip_btn_text, callback_data="menu:vip", icon_custom_emoji_id=ICONS["star"], style="primary"),
         ],
         [
             InlineKeyboardButton(text=t(lang, "btn_stars"),   callback_data="menu:stars",    icon_custom_emoji_id=ICONS["star"]),
