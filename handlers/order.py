@@ -130,11 +130,16 @@ def _topup_presets_kb(lang: str) -> InlineKeyboardMarkup:
     ])
 
 
-async def _stars_presets_kb(lang: str, config: BotConfig, db: Database) -> InlineKeyboardMarkup:
+async def _stars_presets_kb(lang: str, config: BotConfig, db: Database, user_id: Optional[int] = None) -> InlineKeyboardMarkup:
     price_row = await db.get_price("stars")
     base_usd = float(price_row["base_price_usd"]) if price_row else 0.015
     commission = float(price_row["commission_percent"]) / 100 if price_row else 0.05
     discount = float(price_row.get("discount_percent", 0)) if price_row else 0.0
+
+    is_vip = False
+    if user_id and await db.is_user_vip(user_id):
+        commission = 0.0
+        is_vip = True
 
     presets = [50, 75, 100, 200, 350, 400, 500]
     buttons = []
@@ -153,6 +158,15 @@ async def _stars_presets_kb(lang: str, config: BotConfig, db: Database) -> Inlin
     buttons.append(InlineKeyboardButton(text=custom_text, callback_data="stars_qty:custom", icon_custom_emoji_id=ICONS["pencil"]))
 
     keyboard = []
+    if is_vip:
+        keyboard.append([
+            InlineKeyboardButton(text="👑 VIP Tarif: 0% Komissiya (Faol)", callback_data="menu:vip", icon_custom_emoji_id=ICONS["crown"])
+        ])
+    else:
+        keyboard.append([
+            InlineKeyboardButton(text="👑 VIP Optom Tarifga ulanish (0%)", callback_data="menu:vip", icon_custom_emoji_id=ICONS["crown"])
+        ])
+
     row = []
     for btn in buttons:
         row.append(btn)
@@ -175,8 +189,8 @@ def _normalize_username(raw: str) -> str:
     return u
 
 
-async def _calc_price(config: BotConfig, service: str, quantity: int = 1) -> dict:
-    """Return {price_usd, price_ton, discount_percent}."""
+async def _calc_price(config: BotConfig, service: str, quantity: int = 1, user_id: Optional[int] = None) -> dict:
+    """Return {price_usd, price_ton, discount_percent, is_vip}."""
     db = Database(config.database_path)
     price_row = await db.get_price(service)
     if not price_row:
@@ -185,6 +199,11 @@ async def _calc_price(config: BotConfig, service: str, quantity: int = 1) -> dic
     base_usd = float(price_row["base_price_usd"])
     commission = float(price_row["commission_percent"]) / 100
     discount = float(price_row["discount_percent"])
+
+    is_vip = False
+    if user_id and await db.is_user_vip(user_id):
+        commission = 0.0
+        is_vip = True
 
     if service == "stars":
         total_usd = base_usd * quantity * (1 + commission)
@@ -203,7 +222,7 @@ async def _calc_price(config: BotConfig, service: str, quantity: int = 1) -> dic
     except Exception:
         price_ton = round(total_usd / 3.5, 6)
 
-    return {"price_usd": total_usd, "price_ton": price_ton, "discount_percent": discount}
+    return {"price_usd": total_usd, "price_ton": price_ton, "discount_percent": discount, "is_vip": is_vip}
 
 
 # ─── Balance Top Up Flow ──────────────────────────────────────────────────────
@@ -585,7 +604,7 @@ async def recipient_self(callback: CallbackQuery, state: FSMContext) -> None:
         max_q = price_row["max_qty"] if price_row else 50000
         await state.update_data(min_qty=min_q, max_qty=max_q)
         await state.set_state(OrderFlow.enter_quantity)
-        kb = await _stars_presets_kb(lang, config, db)
+        kb = await _stars_presets_kb(lang, config, db, user_id=callback.from_user.id)
         await callback.message.edit_text(
             t(lang, "select_stars_amount", recipient=username),
             reply_markup=kb,
@@ -626,7 +645,7 @@ async def enter_recipient(message: Message, state: FSMContext) -> None:
         max_q = price_row["max_qty"] if price_row else 50000
         await state.update_data(min_qty=min_q, max_qty=max_q)
         await state.set_state(OrderFlow.enter_quantity)
-        kb = await _stars_presets_kb(lang, config, db)
+        kb = await _stars_presets_kb(lang, config, db, user_id=user.id)
         await message.answer(
             t(lang, "select_stars_amount", recipient=username),
             reply_markup=kb,
@@ -664,6 +683,8 @@ async def stars_qty_selected(callback: CallbackQuery, state: FSMContext) -> None
 
     qty = int(val)
     await state.update_data(quantity=qty)
+    if prices.get("is_vip"):
+        summary += "\n👑 <b>VIP Imtiyoz:</b> 0% Komissiya (Tannarxida)!"
     await state.set_state(OrderFlow.confirm_order)
     await _show_order_summary(callback.message, state, lang, config, user_id=user.id)
     await callback.answer()
@@ -712,7 +733,7 @@ async def _show_order_summary(
     gift_name = data.get("gift_name", "")
 
     try:
-        prices = await _calc_price(config, service, qty)
+        prices = await _calc_price(config, service, qty, user_id=user_id)
     except Exception:
         logger.exception("Price calculation failed")
         await target.answer(t(lang, "error_general"), parse_mode="HTML")

@@ -8,7 +8,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 from loguru import logger
 
-from handlers import admin, order, referral, start
+from handlers import admin, order, referral, start, vip
 from services.config import BotConfig
 from services.db import Database
 from services.fragment_api import FragmentAPIService
@@ -84,6 +84,7 @@ async def main() -> None:
     dp.callback_query.middleware(sub_middleware)
 
     dp.include_router(admin.router)
+    dp.include_router(vip.router)
     dp.include_router(referral.router)
     dp.include_router(start.router)
     dp.include_router(order.router)

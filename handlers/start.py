@@ -39,11 +39,15 @@ def _lang_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
-def _main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
+def _main_menu_keyboard(lang: str, is_vip: bool = False) -> InlineKeyboardMarkup:
+    vip_btn_text = "👑 VIP Tarif: Faol (0%)" if is_vip else "👑 VIP Optom Tarif (0%)"
     return InlineKeyboardMarkup(inline_keyboard=[
         [
+            InlineKeyboardButton(text=vip_btn_text, callback_data="menu:vip", icon_custom_emoji_id=ICONS["crown"]),
+        ],
+        [
             InlineKeyboardButton(text=t(lang, "btn_stars"),   callback_data="menu:stars",    icon_custom_emoji_id=ICONS["star"]),
-            InlineKeyboardButton(text=t(lang, "btn_premium"), callback_data="menu:premium",  icon_custom_emoji_id=ICONS["diamond"], style="primary"),
+            InlineKeyboardButton(text=t(lang, "btn_premium"), callback_data="menu:premium",  icon_custom_emoji_id=ICONS["diamond"]),
         ],
         [
             InlineKeyboardButton(text=t(lang, "btn_gift"),    callback_data="menu:gift",     icon_custom_emoji_id=ICONS["gift"]),
@@ -127,7 +131,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
         bal_str = format_balance(float(fresh_user.get("balance_uzs") or 0.0), lang, config)
         await message.answer(
             t(lang, "welcome", name=name, user_num=user_num, balance=bal_str),
-            reply_markup=_main_menu_keyboard(lang),
+            reply_markup=_main_menu_keyboard(lang, is_vip=await db.is_user_vip(user.id)),
             parse_mode="HTML",
         )
         return
@@ -163,7 +167,7 @@ async def set_lang(callback: CallbackQuery, state: FSMContext) -> None:
     name = f"@{user.username}" if user.username else (user.full_name or "Foydalanuvchi")
     await callback.message.edit_text(
         t(lang, "welcome", name=name, user_num=user_num, balance=bal_str),
-        reply_markup=_main_menu_keyboard(lang),
+        reply_markup=_main_menu_keyboard(lang, is_vip=await db.is_user_vip(user.id)),
         parse_mode="HTML",
     )
     await state.clear()
@@ -373,6 +377,6 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext) -> None:
     await safe_edit_text(
         callback.message,
         t(lang, "main_menu", name=name, user_num=user_num, balance=bal_str),
-        reply_markup=_main_menu_keyboard(lang),
+        reply_markup=_main_menu_keyboard(lang, is_vip=await db.is_user_vip(user.id)),
         parse_mode="HTML",
     )

@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 
 from contextlib import asynccontextmanager
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Any, AsyncIterator, Dict, Iterable, List, Optional
 
 import aiosqlite
@@ -247,6 +247,7 @@ class Database:
             "ref_by": "INTEGER DEFAULT NULL",
             "referral_stars": "INTEGER NOT NULL DEFAULT 0",
             "referral_count": "INTEGER NOT NULL DEFAULT 0",
+            "vip_until": "TEXT DEFAULT NULL",
         }
         for name, col_type in columns.items():
             if name not in existing:
@@ -1076,3 +1077,151 @@ class Database:
             )
             await db.commit()
             return cursor.rowcount == 1
+
+
+    # ─── VIP Membership ──────────────────────────────────────────────────────
+
+    async def is_user_vip(self, user_id: int) -> bool:
+        """Check if user has an active VIP membership."""
+        user = await self.get_user(user_id)
+        if not user or not user.get("vip_until"):
+            return False
+        try:
+            exp = datetime.fromisoformat(str(user["vip_until"]))
+            return exp > datetime.now()
+        except Exception:
+            return False
+
+    async def get_user_vip_info(self, user_id: int) -> Dict[str, Any]:
+        """Return detailed VIP information for user."""
+        user = await self.get_user(user_id)
+        if not user or not user.get("vip_until"):
+            return {"is_vip": False, "vip_until": None, "days_left": 0, "hours_left": 0}
+
+        try:
+            exp = datetime.fromisoformat(str(user["vip_until"]))
+            now = datetime.now()
+            if exp <= now:
+                return {"is_vip": False, "vip_until": str(user["vip_until"]), "days_left": 0, "hours_left": 0}
+
+            diff = exp - now
+            days_left = diff.days
+            hours_left = int(diff.seconds // 3600)
+            return {
+                "is_vip": True,
+                "vip_until": exp.strftime("%d.%m.%Y %H:%M"),
+                "days_left": days_left,
+                "hours_left": hours_left,
+            }
+        except Exception:
+            return {"is_vip": False, "vip_until": None, "days_left": 0, "hours_left": 0}
+
+    async def set_user_vip(self, user_id: int, days: int) -> str:
+        """Grant or extend VIP membership for user by `days` days. Returns new expiry iso string."""
+        user = await self.get_user(user_id)
+        now = datetime.now()
+        base_time = now
+
+        if user and user.get("vip_until"):
+            try:
+                curr_exp = datetime.fromisoformat(str(user["vip_until"]))
+                if curr_exp > now:
+                    base_time = curr_exp
+            except Exception:
+                pass
+
+        new_exp = base_time + timedelta(days=days)
+        new_exp_iso = new_exp.isoformat(timespec="seconds")
+
+        async with self.connect() as db:
+            await db.execute(
+                "UPDATE users SET vip_until = ? WHERE user_id = ?",
+                (new_exp_iso, user_id),
+            )
+            await db.commit()
+
+        logger.info("User {} ga {} kunlik VIP berildi. Tugash vaqti: {}", user_id, days, new_exp_iso)
+        return new_exp_iso
+
+    async def cancel_user_vip(self, user_id: int) -> bool:
+        """Cancel VIP membership for user."""
+        async with self.connect() as db:
+            cursor = await db.execute(
+                "UPDATE users SET vip_until = NULL WHERE user_id = ?",
+                (user_id,),
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+
+    async def get_vip_plans(self) -> Dict[str, Dict[str, Any]]:
+        """Return configured VIP tariff plans with pricing."""
+        p1 = await self.get_setting("vip_price_1d")
+        p7 = await self.get_setting("vip_price_7d")
+        p15 = await self.get_setting("vip_price_15d")
+
+        p1_val = float(p1) if p1 else 9900.0
+        p7_val = float(p7) if p7 else 25000.0
+        p15_val = float(p15) if p15 else 45000.0
+
+        return {
+            "vip_1d": {
+                "key": "vip_1d",
+                "name": "⚡ 1 Kunlik VIP Pass",
+                "days": 1,
+                "price_uzs": p1_val,
+                "price_usd": round(p1_val / 12900, 2),
+                "badge": "Tezkor xarid",
+                "benefit": "500-1,000 Stars xaridida o'zini to'liq oqlaydi!",
+            },
+            "vip_7d": {
+                "key": "vip_7d",
+                "name": "📅 7 Kunlik VIP Pass",
+                "days": 7,
+                "price_uzs": p7_val,
+                "price_usd": round(p7_val / 12900, 2),
+                "badge": "65% Chegirma",
+                "benefit": "Resellerlar va faol xaridorlar tanlovi!",
+            },
+            "vip_15d": {
+                "key": "vip_15d",
+                "name": "👑 15 Kunlik VIP Pass",
+                "days": 15,
+                "price_uzs": p15_val,
+                "price_usd": round(p15_val / 12900, 2),
+                "badge": "70% Super Chegirma",
+                "benefit": "Eng arzon tannarx — xohlagancha stars oling!",
+            },
+        }
+
+    async def get_active_vip_users(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Return users with active VIP status."""
+        now = datetime.now().isoformat(timespec="seconds")
+        return await self._fetch(
+            """
+            SELECT user_id, username, vip_until, balance_uzs
+            FROM users
+            WHERE vip_until IS NOT NULL AND vip_until > ?
+            ORDER BY vip_until ASC LIMIT ?
+            """,
+            (now, limit),
+        )
+
+    async def get_vip_stats(self) -> Dict[str, Any]:
+        """Return VIP membership statistics."""
+        now = datetime.now().isoformat(timespec="seconds")
+        async with self.connect() as db:
+            c1 = await db.execute("SELECT COUNT(*) FROM users WHERE vip_until IS NOT NULL AND vip_until > ?", (now,))
+            active_count = (await c1.fetchone())[0]
+
+            c2 = await db.execute(
+                "SELECT COALESCE(SUM(price_uzs), 0), COUNT(*) FROM orders WHERE order_type LIKE 'vip_%' AND status = 'completed'"
+            )
+            row2 = await c2.fetchone()
+            total_revenue = float(row2[0]) if row2 else 0.0
+            total_sold = int(row2[1]) if row2 else 0
+
+        return {
+            "active_vip_count": active_count,
+            "total_vip_revenue": total_revenue,
+            "total_vip_sold": total_sold,
+        }

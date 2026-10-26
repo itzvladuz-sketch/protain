@@ -152,19 +152,36 @@ class HumoPaymentMonitor:
             self._stop_event.set()
 
     async def _run_userbot(self) -> None:
-        """Connect Telethon client and listen for incoming messages."""
+        """Connect Telethon client and listen for incoming messages.
+
+        Session strategy — uses StringSession from .env as primary:
+        1. Load TELETHON_SESSION_STRING from .env
+        2. Connect and verify authorization
+        3. After successful connection, save the (potentially updated) session
+           string back to .env so it stays fresh across restarts
+        4. On disconnect/reconnect, the updated string is always available
+        """
         try:
             from telethon import TelegramClient, events
             from telethon.sessions import StringSession
+            import dotenv
 
             bot_me = await self.bot.get_me()
             my_bot_id = bot_me.id
             my_bot_username = (bot_me.username or "").lower()
 
             clean_session = (getattr(self.config, "telethon_session_string", "") or "").strip().strip("'\"")
-            session = StringSession(clean_session) if clean_session else "humo_listener_session"
+
+            if not clean_session:
+                logger.warning(
+                    "TELETHON_SESSION_STRING .env faylida topilmadi. "
+                    "Avval 'python telethon_auth.py' orqali sessiya yarating."
+                )
+                return
+
+            # Connect using StringSession
             self.client = TelegramClient(
-                session,
+                StringSession(clean_session),
                 int(self.config.tg_api_id),
                 str(self.config.tg_api_hash),
                 device_model="Desktop",
@@ -173,14 +190,27 @@ class HumoPaymentMonitor:
                 lang_code="uz",
                 system_lang_code="uz-UZ",
             )
-
             await self.client.connect()
+
             if not await self.client.is_user_authorized():
-                logger.warning("Telethon userbot tizimga kirmagan (avtorizatsiya talab qilinadi)")
+                logger.warning(
+                    "Telethon sessiyasi eskirgan yoki yaroqsiz. "
+                    "Qayta avtorizatsiya qiling: python telethon_auth.py"
+                )
                 await self.client.disconnect()
+                self.client = None
                 return
 
-            logger.info("Telethon Humo to'lov tinglovchisi ishga tushdi (Bot @{} e'tiborsiz qoldiriladi)", my_bot_username)
+            # Save the (potentially refreshed) session back to .env
+            try:
+                updated_str = StringSession.save(self.client.session)
+                if updated_str and updated_str != clean_session:
+                    dotenv.set_key(".env", "TELETHON_SESSION_STRING", updated_str)
+                    logger.info("Telethon session string .env ga yangilandi")
+            except Exception as save_err:
+                logger.debug("Session stringni .env ga saqlashda xatolik (kritik emas): {}", save_err)
+
+            logger.info("Telethon Humo to\'lov tinglovchisi ishga tushdi (Bot @{} e\'tiborsiz qoldiriladi)", my_bot_username)
 
             @self.client.on(events.NewMessage)
             async def handler(event):
@@ -303,6 +333,54 @@ class HumoPaymentMonitor:
                         f"💵 Summa: <b>{int(price_uzs):,} so'm</b>\n"
                         f"✅ Foydalanuvchi balansiga avtomatik o'tkazildi!\n"
                         f"👛 Yangi balansi: <b>{int(new_bal_uzs):,} so'm</b>",
+                        parse_mode="HTML",
+                    )
+                except Exception:
+                    pass
+            return True
+
+        # VIP Membership activation
+        if order_type.startswith("vip_"):
+            days = 1 if order_type == "vip_1d" else (7 if order_type == "vip_7d" else 15)
+            vip_exp = await self.db.set_user_vip(user_id, days)
+            await self.db.set_order_status(order_id, "completed")
+            u_row = await self.db.get_user(user_id)
+            cur_bal = float(u_row.get("balance_uzs") or 0.0) if u_row else 0.0
+            try:
+                await self.db.record_transaction(
+                    user_id=user_id,
+                    tx_type="vip_purchase",
+                    amount_uzs=price_uzs,
+                    old_balance_uzs=cur_bal,
+                    new_balance_uzs=cur_bal,
+                    order_id=order_id,
+                    comment=f"{days} kunlik VIP Pass (Karta orqali)",
+                )
+            except Exception:
+                pass
+
+            try:
+                await self.bot.send_message(
+                    user_id,
+                    f"🎉 <b>VIP Optom Tarif muvaffaqiyatli faollashtirildi!</b>\n\n"
+                    f"👑 Tarif: <b>{days} kunlik VIP Pass</b>\n"
+                    f"📅 Amal qilish muddati: <b>{vip_exp[:16]}</b> gacha\n"
+                    f"💰 To'landi: <b>{int(price_uzs):,} so'm</b>\n\n"
+                    f"🌟 <i>Endi botdagi barcha Stars va xizmatlar siz uchun 0% komissiyada (o'z tannarxida) taqdim etiladi!</i>",
+                    parse_mode="HTML",
+                )
+            except Exception as e:
+                logger.warning("Foydalanuvchiga VIP bildirishnomasi bormadi: {}", e)
+
+            for adm_id in self.config.admin_user_ids:
+                try:
+                    await self.bot.send_message(
+                        adm_id,
+                        f"👑 <b>Yangi VIP obuna xarid qilindi!</b>\n\n"
+                        f"👤 Foydalanuvchi: <code>{user_id}</code> (@{username or 'yoq'})\n"
+                        f"⚡ Tarif: <b>{days} kunlik VIP</b>\n"
+                        f"💵 Summa: <b>{int(price_uzs):,} so'm</b>\n"
+                        f"📅 Tugash vaqti: <b>{vip_exp[:16]}</b>",
                         parse_mode="HTML",
                     )
                 except Exception:

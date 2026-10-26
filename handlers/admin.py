@@ -73,7 +73,10 @@ def _admin_main_kb() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="Foydalanuvchilar", callback_data="adm:users", icon_custom_emoji_id=ICONS["users"]),
         ],
         [
+            InlineKeyboardButton(text="👑 VIP Obunalar", callback_data="adm:vips", icon_custom_emoji_id=ICONS["crown"]),
             InlineKeyboardButton(text="💳 Moliya & Hisobot", callback_data="adm:finances", icon_custom_emoji_id=ICONS["money"]),
+        ],
+        [
             InlineKeyboardButton(text="💸 Yechish so'rovlari", callback_data="adm:withdraw_requests", icon_custom_emoji_id=ICONS["wallet"]),
         ],
         [
@@ -107,6 +110,7 @@ def _user_card_kb(user_id: int, is_banned: bool) -> InlineKeyboardMarkup:
             ban_btn,
         ],
         [
+            InlineKeyboardButton(text="👑 VIP berish / bekor qilish", callback_data=f"adm:toggle_vip:{user_id}", icon_custom_emoji_id=ICONS["crown"]),
             InlineKeyboardButton(text="📜 Tranzaksiyalar tarixi", callback_data=f"adm:user_tx:{user_id}", icon_custom_emoji_id=ICONS["orders"]),
         ],
         [
@@ -125,6 +129,16 @@ def _render_user_card(user: dict, orders_count: int, fin: Optional[dict] = None)
     bal_uzs = int(user.get("balance_uzs") or 0)
     bal_ton = float(user.get("balance_ton") or 0.0)
 
+    vip_status = "Yo'q ❌"
+    if user.get("vip_until"):
+        try:
+            exp_dt = datetime.fromisoformat(str(user["vip_until"]))
+            if exp_dt > datetime.now():
+                vip_status = f"Faol ✅ (<code>{exp_dt.strftime('%d.%m.%Y %H:%M')}</code> gacha)"
+            else:
+                vip_status = f"Tugagan (<code>{exp_dt.strftime('%d.%m.%Y')}</code>)"
+        except Exception:
+            pass
     fin_block = ""
     if fin:
         dep = int(fin.get("total_deposited", 0))
@@ -145,6 +159,7 @@ def _render_user_card(user: dict, orders_count: int, fin: Optional[dict] = None)
         f'{tg_icon("wallet", "💰")} Balans: <b>{bal_uzs:,} so\'m</b>\n'
         f'{tg_icon("diamond", "💎")} TON Balans: {bal_ton:.4f} TON\n'
         f"{fin_block}"
+        f'{tg_icon("crown", "👑")} VIP Tarif: {vip_status}\n'
         f'{tg_icon("ban", "🚫")} Bloklangan: {banned}\n'
         f'{tg_icon("calendar", "📅")} Ro\'yxatdan: {date_str}\n'
         f'{tg_icon("orders", "📋")} Buyurtmalar: {orders_count} ta'
@@ -2183,3 +2198,134 @@ async def admin_reject_withdraw(callback: CallbackQuery) -> None:
         )
     except Exception:
         pass
+
+
+# ─── Admin VIP Management ────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "adm:vips")
+async def admin_vip_management(callback: CallbackQuery) -> None:
+    config = BotConfig.load()
+    if not callback.from_user or not await _is_admin(callback.from_user.id, config):
+        await callback.answer()
+        return
+
+    db = Database(config.database_path)
+    stats = await db.get_vip_stats()
+    plans = await db.get_vip_plans()
+    active_users = await db.get_active_vip_users(limit=10)
+
+    p1 = plans["vip_1d"]
+    p7 = plans["vip_7d"]
+    p15 = plans["vip_15d"]
+
+    lines = [
+        f"{tg_icon('crown', '👑')} <b>VIP Optom Tariflar Nazorati</b>\n",
+        f"👥 <b>Faol VIP a'zolar:</b> <code>{stats['active_vip_count']}</code> ta",
+        f"💰 <b>Jami VIP tushumi:</b> <code>{int(stats['total_vip_revenue']):,} so'm</code>",
+        f"📦 <b>Jami sotilgan VIP:</b> <code>{stats['total_vip_sold']}</code> ta\n",
+        f"🏷 <b>Joriy tarif narxlari:</b>",
+        f"• ⚡ 1 kunlik: <b>{int(p1['price_uzs']):,} so'm</b>",
+        f"• 📅 7 kunlik: <b>{int(p7['price_uzs']):,} so'm</b>",
+        f"• 👑 15 kunlik: <b>{int(p15['price_uzs']):,} so'm</b>\n",
+    ]
+
+    if active_users:
+        lines.append("🌟 <b>Oxirgi faol VIP a'zolar:</b>")
+        for u in active_users:
+            uname = f"@{u['username']}" if u.get("username") else f"ID:{u['user_id']}"
+            exp_str = str(u.get("vip_until", ""))[:16]
+            lines.append(f"• <b>{uname}</b> (<code>{u['user_id']}</code>) — <code>{exp_str}</code> gacha")
+    else:
+        lines.append("<i>Hozircha faol VIP obunachi yo'q.</i>")
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👥 Foydalanuvchilar", callback_data="adm:users", icon_custom_emoji_id=ICONS["users"])],
+        [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
+    ])
+
+    await safe_edit_text(callback.message, "\n".join(lines), reply_markup=kb, parse_mode="HTML")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("adm:toggle_vip:"))
+async def admin_toggle_vip_prompt(callback: CallbackQuery) -> None:
+    config = BotConfig.load()
+    if not callback.from_user or not await _is_admin(callback.from_user.id, config):
+        await callback.answer()
+        return
+
+    user_id = int(callback.data.split(":", 2)[2])
+    db = Database(config.database_path)
+    user = await db.get_user(user_id)
+    if not user:
+        await callback.answer("Foydalanuvchi topilmadi!", show_alert=True)
+        return
+
+    vip_info = await db.get_user_vip_info(user_id)
+    cur_status = f"Faol ({vip_info['vip_until']} gacha)" if vip_info["is_vip"] else "Yo'q"
+
+    text = (
+        f"{tg_icon('crown', '👑')} <b>Foydalanuvchiga VIP berish / bekor qilish</b>\n\n"
+        f"👤 Foydalanuvchi: <b>@{user.get('username') or 'yoq'}</b> (<code>{user_id}</code>)\n"
+        f"👑 Hozirgi VIP holati: <b>{cur_status}</b>\n\n"
+        f"Qancha muddatga VIP bermoqchisiz?"
+    )
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="⚡ +1 kun", callback_data=f"adm:act_vip:{user_id}:1"),
+            InlineKeyboardButton(text="📅 +7 kun", callback_data=f"adm:act_vip:{user_id}:7"),
+            InlineKeyboardButton(text="👑 +15 kun", callback_data=f"adm:act_vip:{user_id}:15"),
+        ],
+        [
+            InlineKeyboardButton(text="🌟 +30 kun", callback_data=f"adm:act_vip:{user_id}:30"),
+            InlineKeyboardButton(text="❌ VIPni bekor qilish", callback_data=f"adm:act_vip:{user_id}:0"),
+        ],
+        [InlineKeyboardButton(text="🔙 User kartasi", callback_data=f"adm:view_user:{user_id}", icon_custom_emoji_id=ICONS["back"])],
+    ])
+
+    await safe_edit_text(callback.message, text, reply_markup=kb, parse_mode="HTML")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("adm:act_vip:"))
+async def admin_execute_vip_action(callback: CallbackQuery) -> None:
+    config = BotConfig.load()
+    if not callback.from_user or not await _is_admin(callback.from_user.id, config):
+        await callback.answer()
+        return
+
+    parts = callback.data.split(":")
+    user_id = int(parts[2])
+    days = int(parts[3])
+
+    db = Database(config.database_path)
+
+    if days == 0:
+        await db.cancel_user_vip(user_id)
+        await callback.answer("❌ VIP bekor qilindi!", show_alert=True)
+        try:
+            await callback.bot.send_message(user_id, "ℹ️ Sizning VIP tarifingiz admin tomonidan bekor qilindi.")
+        except Exception:
+            pass
+    else:
+        new_exp = await db.set_user_vip(user_id, days)
+        await callback.answer(f"✅ {days} kunlik VIP berildi!", show_alert=True)
+        try:
+            await callback.bot.send_message(
+                user_id,
+                f"🎉 <b>Tabriklaymiz! Sizga {days} kunlik VIP Optom Tarif berildi!</b>\n\n"
+                f"📅 Amal qilish muddati: <b>{new_exp[:16]}</b> gacha\n"
+                f"🌟 Endi barcha Stars siz uchun 0% komissiyada (tannarxida)!",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+    # Refresh user card
+    user = await db.get_user(user_id)
+    orders = await db.get_user_orders(user_id, limit=100)
+    fin = await db.get_user_financial_profile(user_id)
+    text = _render_user_card(user, len(orders), fin)
+    kb = _user_card_kb(user_id, bool(user.get("is_banned")))
+    await safe_edit_text(callback.message, text, reply_markup=kb, parse_mode="HTML")
