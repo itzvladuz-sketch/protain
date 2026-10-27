@@ -53,7 +53,7 @@ async def vip_menu(callback: CallbackQuery, state: FSMContext) -> None:
             f"<i>Obunani muddatidan oldin uzaytirishingiz ham mumkin (kunlar qo'shiladi).</i>"
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⭐ Stars xarid qilish (0%)", callback_data="menu:stars", icon_custom_emoji_id=ICONS["star"])],
+            [InlineKeyboardButton(text="Stars xarid qilish (0%)", callback_data="menu:stars", icon_custom_emoji_id=ICONS["star"])],
             [InlineKeyboardButton(text="🔄 Obunani uzaytirish", callback_data="vip:extend", icon_custom_emoji_id=ICONS["star"])],
             [InlineKeyboardButton(text="🔙 Asosiy menyu", callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
         ])
@@ -97,12 +97,12 @@ async def _show_vip_plans(target: Message, plans: dict, is_extend: bool = False)
             icon_custom_emoji_id=ICONS["star"]
         )],
         [InlineKeyboardButton(
-            text=f"📅 7 kunlik — {int(p7['price_uzs']):,} so'm (65% chegirma)",
+            text=f"7 kunlik — {int(p7['price_uzs']):,} so'm (65% chegirma)",
             callback_data="vip_plan:vip_7d",
             icon_custom_emoji_id=ICONS["diamond"]
         )],
         [InlineKeyboardButton(
-            text=f"⭐ 15 kunlik — {int(p15['price_uzs']):,} so'm (70% super)",
+            text=f"15 kunlik — {int(p15['price_uzs']):,} so'm (70% super)",
             callback_data="vip_plan:vip_15d",
             icon_custom_emoji_id=ICONS["star"]
         )],
@@ -241,7 +241,7 @@ async def vip_pay_from_balance(callback: CallbackQuery) -> None:
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⭐ Stars xarid qilish (0%)", callback_data="menu:stars", icon_custom_emoji_id=ICONS["star"])],
+        [InlineKeyboardButton(text="Stars xarid qilish (0%)", callback_data="menu:stars", icon_custom_emoji_id=ICONS["star"])],
         [InlineKeyboardButton(text="🔙 Asosiy menyu", callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
 

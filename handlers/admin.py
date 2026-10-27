@@ -73,7 +73,7 @@ def _admin_main_kb() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="Foydalanuvchilar", callback_data="adm:users", icon_custom_emoji_id=ICONS["users"]),
         ],
         [
-            InlineKeyboardButton(text="⭐ Premium Obunalar", callback_data="adm:vips", icon_custom_emoji_id=ICONS["star"], style="primary"),
+            InlineKeyboardButton(text="Premium Obunalar", callback_data="adm:vips", icon_custom_emoji_id=ICONS["star"], style="primary"),
             InlineKeyboardButton(text="💳 Moliya & Hisobot", callback_data="adm:finances", icon_custom_emoji_id=ICONS["money"]),
         ],
         [
@@ -110,7 +110,7 @@ def _user_card_kb(user_id: int, is_banned: bool) -> InlineKeyboardMarkup:
             ban_btn,
         ],
         [
-            InlineKeyboardButton(text="⭐ Premium berish / bekor qilish", callback_data=f"adm:toggle_vip:{user_id}", icon_custom_emoji_id=ICONS["star"]),
+            InlineKeyboardButton(text="Premium berish / bekor qilish", callback_data=f"adm:toggle_vip:{user_id}", icon_custom_emoji_id=ICONS["star"]),
             InlineKeyboardButton(text="📜 Tranzaksiyalar tarixi", callback_data=f"adm:user_tx:{user_id}", icon_custom_emoji_id=ICONS["orders"]),
         ],
         [

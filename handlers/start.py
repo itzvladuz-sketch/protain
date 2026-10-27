@@ -40,7 +40,7 @@ def _lang_keyboard() -> InlineKeyboardMarkup:
 
 
 def _main_menu_keyboard(lang: str, is_vip: bool = False) -> InlineKeyboardMarkup:
-    vip_btn_text = "⭐ Premium Tarif: Faol (0%)" if is_vip else "⭐ Premium Optom Tarif (0%)"
+    vip_btn_text = "Premium Tarif: Faol (0%)" if is_vip else "Premium Optom Tarif (0%)"
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text=vip_btn_text, callback_data="menu:vip", icon_custom_emoji_id=ICONS["star"], style="primary"),
@@ -205,15 +205,21 @@ async def menu_balance(callback: CallbackQuery) -> None:
     from services.currency import format_balance
     formatted_bal = format_balance(balance_uzs, lang, config)
 
+    is_admin = user.id in config.admin_ids
+    first_row = [
+        InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="balance:topup", icon_custom_emoji_id=ICONS["plus"]),
+    ]
+    if is_admin:
+        first_row.append(
+            InlineKeyboardButton(text="Pul yechish", callback_data="balance:withdraw", icon_custom_emoji_id=ICONS["money"])
+        )
+
     balance_kb = InlineKeyboardMarkup(inline_keyboard=[
+        first_row,
         [
-            InlineKeyboardButton(text="➕ " + t(lang, "btn_topup"), callback_data="balance:topup", icon_custom_emoji_id=ICONS["plus"]),
-            InlineKeyboardButton(text="💸 Pul yechish", callback_data="balance:withdraw", icon_custom_emoji_id=ICONS["money"]),
+            InlineKeyboardButton(text="Tranzaksiyalar tarixi", callback_data="balance:history", icon_custom_emoji_id=ICONS["orders"]),
         ],
-        [
-            InlineKeyboardButton(text="📜 Tranzaksiyalar tarixi", callback_data="balance:history", icon_custom_emoji_id=ICONS["orders"]),
-        ],
-        [InlineKeyboardButton(text=t(lang, "btn_back"),  callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
     user_num = db_user.get("id", 1)
     await safe_edit_text(

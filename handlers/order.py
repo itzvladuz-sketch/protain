@@ -160,11 +160,11 @@ async def _stars_presets_kb(lang: str, config: BotConfig, db: Database, user_id:
     keyboard = []
     if is_vip:
         keyboard.append([
-            InlineKeyboardButton(text="⭐ Premium Tarif: 0% Komissiya (Faol)", callback_data="menu:vip", icon_custom_emoji_id=ICONS["star"], style="primary")
+            InlineKeyboardButton(text="Premium Tarif: 0% Komissiya (Faol)", callback_data="menu:vip", icon_custom_emoji_id=ICONS["star"], style="primary")
         ])
     else:
         keyboard.append([
-            InlineKeyboardButton(text="⭐ Premium Optom Tarifga ulanish (0%)", callback_data="menu:vip", icon_custom_emoji_id=ICONS["star"], style="primary")
+            InlineKeyboardButton(text="Premium Optom Tarifga ulanish (0%)", callback_data="menu:vip", icon_custom_emoji_id=ICONS["star"], style="primary")
         ])
 
     row = []
@@ -1470,11 +1470,15 @@ async def user_balance_history(callback: CallbackQuery) -> None:
 async def user_balance_withdraw_start(callback: CallbackQuery, state: FSMContext) -> None:
     await safe_answer(callback)
     config = BotConfig.load()
-    db = Database(config.database_path)
     user = callback.from_user
     if not user:
         return
 
+    if user.id not in config.admin_ids:
+        await callback.answer("Balansdan pul yechish faqat ma'muriyat uchun mavjud!", show_alert=True)
+        return
+
+    db = Database(config.database_path)
     db_user = await db.get_user(user.id)
     bal_uzs = float(db_user.get("balance_uzs") or 0.0) if db_user else 0.0
 
