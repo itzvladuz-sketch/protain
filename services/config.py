@@ -100,6 +100,10 @@ class BotConfig:
 
     version: str
 
+    @property
+    def admin_ids(self) -> Tuple[int, ...]:
+        return self.admin_user_ids
+
     @classmethod
     def load(cls, force_reload: bool = False) -> "BotConfig":
         global _CONFIG_CACHE

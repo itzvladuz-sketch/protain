@@ -34,7 +34,8 @@ class ThrottlingMiddleware(BaseMiddleware):
         uid = user.id
 
         # Admins are exempt from rate limiting
-        if uid in self.config.admin_ids:
+        admin_ids = getattr(self.config, "admin_user_ids", ())
+        if uid in admin_ids:
             return await handler(event, data)
 
         now = time.time()
