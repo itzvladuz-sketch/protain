@@ -205,17 +205,10 @@ async def menu_balance(callback: CallbackQuery) -> None:
     from services.currency import format_balance
     formatted_bal = format_balance(balance_uzs, lang, config)
 
-    is_admin = user.id in config.admin_ids
-    first_row = [
-        InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="balance:topup", icon_custom_emoji_id=ICONS["plus"]),
-    ]
-    if is_admin:
-        first_row.append(
-            InlineKeyboardButton(text="Pul yechish", callback_data="balance:withdraw", icon_custom_emoji_id=ICONS["money"])
-        )
-
     balance_kb = InlineKeyboardMarkup(inline_keyboard=[
-        first_row,
+        [
+            InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="balance:topup", icon_custom_emoji_id=ICONS["plus"]),
+        ],
         [
             InlineKeyboardButton(text="Tranzaksiyalar tarixi", callback_data="balance:history", icon_custom_emoji_id=ICONS["orders"]),
         ],
