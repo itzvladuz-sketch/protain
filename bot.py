@@ -77,6 +77,12 @@ async def main() -> None:
     bot = Bot(token=config.bot_token)
     dp = Dispatcher(storage=MemoryStorage())
 
+    # Anti-flood & throttling middleware (protects against spam and rapid clicking)
+    from services.throttling import ThrottlingMiddleware
+    throttle_middleware = ThrottlingMiddleware(config)
+    dp.message.middleware(throttle_middleware)
+    dp.callback_query.middleware(throttle_middleware)
+
     # Mandatory channel subscription middleware
     from services.subscription import SubscriptionMiddleware
     sub_middleware = SubscriptionMiddleware(db, config)

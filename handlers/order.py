@@ -923,8 +923,32 @@ async def pay_balance(callback: CallbackQuery, state: FSMContext) -> None:
             desc = f"{qty} Stars"
 
         await db.set_order_status(order_id, "completed", fragment_tx_hash=tx)
+
+        # Track VIP savings if applicable
+        saved_uzs = 0.0
+        if prices.get("is_vip") and order_type == "stars":
+            base_usd = float((await db.get_price("stars") or {}).get("base_price_usd", 0.015))
+            regular_cost = round(base_usd * qty * (1 + 0.085168) * rate)
+            saved_uzs = max(0.0, float(regular_cost - price_uzs))
+            if saved_uzs > 0:
+                await db.add_vip_savings(user.id, saved_uzs)
+
+        from services.receipt import format_order_receipt
+        receipt_text = format_order_receipt(
+            order_id=order_id,
+            order_type=order_type,
+            desc=desc,
+            recipient=recipient,
+            price_uzs=float(price_uzs),
+            payment_method="Bot Balansi",
+            lang=lang,
+            is_vip=bool(prices.get("is_vip")),
+            saved_uzs=saved_uzs,
+            tx_hash=tx,
+        )
+
         await callback.message.edit_text(
-            t(lang, "order_completed", amount=desc, recipient=recipient),
+            receipt_text,
             reply_markup=_back_kb(lang),
             parse_mode="HTML",
         )
@@ -1030,8 +1054,10 @@ async def _create_service_card_order(callback: CallbackQuery, state: FSMContext,
         callback.message,
         t(lang, instr_key,
           card_number=card_num,
+          card_number_clean=card_num.replace(" ", ""),
           card_holder=card_holder,
           amount=int(price_uzs),
+          amount_raw=int(price_uzs),
           timeout=timeout_min),
         reply_markup=_payment_kb(lang, order_id, payment_type=pay_type),
         parse_mode="HTML",

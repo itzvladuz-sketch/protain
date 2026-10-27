@@ -99,17 +99,19 @@ TEXTS: dict = {
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Humo to\'lov:</b>\n\n'
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> Karta:\n<code>{card_number}</code>\n'
         '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Egasi: <b>{card_holder}</b>\n\n'
-        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> To\'lov summasi:\n<code>{amount:,}</code> so\'m\n\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> To\'lov summasi: <b>{amount:,} so\'m</b>\n'
+        '📋 Nusxalash: <code>{amount_raw}</code>\n\n'
         '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> To\'lov muddati: <b>{timeout} daqiqa</b>\n\n'
-        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>DIQQAT:</b> To\'lov avtomatik tarzda 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount:,}</code> so\'m o\'tkazing!'
+        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>DIQQAT:</b> To\'lov avtomatik 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount_raw}</code> so\'m o\'tkazing!'
     ),
     "click_payment_instructions": (
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Click (Uzcard) to\'lov:</b>\n\n'
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> Karta:\n<code>{card_number}</code>\n'
         '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Egasi: <b>{card_holder}</b>\n\n'
-        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> To\'lov summasi:\n<code>{amount:,}</code> so\'m\n\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> To\'lov summasi: <b>{amount:,} so\'m</b>\n'
+        '📋 Nusxalash: <code>{amount_raw}</code>\n\n'
         '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> To\'lov muddati: <b>{timeout} daqiqa</b>\n\n'
-        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>DIQQAT:</b> To\'lov avtomatik tarzda 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount:,}</code> so\'m o\'tkazing!\n\n'
+        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>DIQQAT:</b> To\'lov avtomatik 1-2 soniyada tasdiqlanishi uchun aynan <code>{amount_raw}</code> so\'m o\'tkazing!\n\n'
         "<i>To'lovni @clickuz boti yoki Click ilovasi orqali amalga oshirishingiz mumkin.</i>"
     ),
     "payment_not_found": '<tg-emoji emoji-id="5778605968208170641">⏳</tg-emoji> To\'lov hali topilmadi. Pul o\'tkazgan bo\'lsangiz, 1-2 daqiqa kuting.',

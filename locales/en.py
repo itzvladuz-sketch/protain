@@ -97,17 +97,19 @@ TEXTS: dict = {
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Humo Payment:</b>\n\n'
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> Card:\n<code>{card_number}</code>\n'
         '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Cardholder: <b>{card_holder}</b>\n\n'
-        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Payment Amount:\n<code>{amount:,}</code> UZS\n\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Payment Amount: <b>{amount:,} UZS</b>\n'
+        '📋 Copy: <code>{amount_raw}</code>\n\n'
         '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Payment window: <b>{timeout} minutes</b>\n\n'
-        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount:,}</code> UZS!'
+        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount_raw}</code> UZS!'
     ),
     "click_payment_instructions": (
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Click (Uzcard) Payment:</b>\n\n'
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> Card:\n<code>{card_number}</code>\n'
         '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Cardholder: <b>{card_holder}</b>\n\n'
-        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Payment Amount:\n<code>{amount:,}</code> UZS\n\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Payment Amount: <b>{amount:,} UZS</b>\n'
+        '📋 Copy: <code>{amount_raw}</code>\n\n'
         '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Payment window: <b>{timeout} minutes</b>\n\n'
-        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount:,}</code> UZS!\n\n'
+        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>NOTE:</b> For automatic instant verification, please transfer exactly <code>{amount_raw}</code> UZS!\n\n'
         "<i>You can transfer via @clickuz bot or Click Up app.</i>"
     ),
     "payment_not_found": '<tg-emoji emoji-id="5778605968208170641">⏳</tg-emoji> Payment not found yet. If you transferred, please wait 1-2 minutes.',

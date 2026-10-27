@@ -115,6 +115,8 @@ class Database:
                     ref_by          INTEGER DEFAULT NULL,
                     referral_stars  INTEGER NOT NULL DEFAULT 0,
                     referral_count  INTEGER NOT NULL DEFAULT 0,
+                    vip_until       TEXT DEFAULT NULL,
+                    vip_saved_uzs   REAL NOT NULL DEFAULT 0.0,
                     is_banned       INTEGER NOT NULL DEFAULT 0,
                     created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
@@ -248,6 +250,7 @@ class Database:
             "referral_stars": "INTEGER NOT NULL DEFAULT 0",
             "referral_count": "INTEGER NOT NULL DEFAULT 0",
             "vip_until": "TEXT DEFAULT NULL",
+            "vip_saved_uzs": "REAL NOT NULL DEFAULT 0.0",
         }
         for name, col_type in columns.items():
             if name not in existing:
@@ -1092,11 +1095,23 @@ class Database:
         except Exception:
             return False
 
+    async def add_vip_savings(self, user_id: int, saved_uzs: float) -> None:
+        """Accumulate money saved by user thanks to VIP wholesale discount."""
+        if saved_uzs <= 0:
+            return
+        async with self.connect() as db:
+            await db.execute(
+                "UPDATE users SET vip_saved_uzs = COALESCE(vip_saved_uzs, 0.0) + ? WHERE user_id = ?",
+                (saved_uzs, user_id),
+            )
+            await db.commit()
+
     async def get_user_vip_info(self, user_id: int) -> Dict[str, Any]:
         """Return detailed VIP information for user."""
         user = await self.get_user(user_id)
+        saved = float(user.get("vip_saved_uzs") or 0.0) if user else 0.0
         if not user or not user.get("vip_until"):
-            return {"is_vip": False, "vip_until": None, "days_left": 0, "hours_left": 0}
+            return {"is_vip": False, "vip_until": None, "days_left": 0, "hours_left": 0, "vip_saved_uzs": saved}
 
         try:
             exp = datetime.fromisoformat(str(user["vip_until"]))
@@ -1112,6 +1127,7 @@ class Database:
                 "vip_until": exp.strftime("%d.%m.%Y %H:%M"),
                 "days_left": days_left,
                 "hours_left": hours_left,
+                "vip_saved_uzs": saved,
             }
         except Exception:
             return {"is_vip": False, "vip_until": None, "days_left": 0, "hours_left": 0}

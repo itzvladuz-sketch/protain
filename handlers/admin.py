@@ -502,7 +502,7 @@ async def cmd_list_balances(message: Message) -> None:
     await message.answer("\n".join(lines), reply_markup=InlineKeyboardMarkup(inline_keyboard=inline_keyboard), parse_mode="HTML")
 
 
-@router.message(Command("user", "lookup"))
+@router.message(Command("user", "lookup", "find", "search", "qidir"))
 async def cmd_user_lookup(message: Message) -> None:
     """Admin buyrug'i: foydalanuvchi kartasini ochish."""
     config = BotConfig.load()
@@ -527,6 +527,78 @@ async def cmd_user_lookup(message: Message) -> None:
     text = _render_user_card(user, len(orders), fin)
     kb = _user_card_kb(user_id, bool(user.get("is_banned")))
     await message.answer(text, reply_markup=kb, parse_mode="HTML")
+
+
+@router.message(Command("backup", "db_backup", "baza"))
+async def cmd_backup_database(message: Message) -> None:
+    """Admin buyrug'i: ma'lumotlar bazasi zaxira nusxasini chatga yuborish."""
+    config = BotConfig.load()
+    if not message.from_user or not await _is_admin(message.from_user.id, config):
+        return
+
+    import os
+    from aiogram.types import FSInputFile
+
+    db_path = Path(config.database_path)
+    if not db_path.exists():
+        await message.answer("❌ Ma'lumotlar bazasi fayli topilmadi.")
+        return
+
+    size_kb = round(os.path.getsize(db_path) / 1024, 1)
+    now_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    backup_filename = f"backup_stars_{now_str}.db"
+
+    db = Database(config.database_path)
+    stats = await db.get_stats()
+
+    caption = (
+        f"💾 <b>Ma'lumotlar Bazasi Zaxira Nusxasi (Backup)</b>\n\n"
+        f"📁 Fayl: <code>{db_path.name}</code>\n"
+        f"📦 Hajmi: <b>{size_kb} KB</b>\n"
+        f"👥 Foydalanuvchilar: <b>{stats['users']} ta</b>\n"
+        f"📋 Buyurtmalar: <b>{stats['orders']} ta</b>\n"
+        f"📅 Sana: <b>{datetime.now().strftime('%d.%m.%Y %H:%M:%S')}</b>\n\n"
+        f"🛡️ <i>Barcha xaridlar va balanslar to'liq saqlangan.</i>"
+    )
+
+    doc = FSInputFile(path=str(db_path), filename=backup_filename)
+    await message.answer_document(doc, caption=caption, parse_mode="HTML")
+
+
+@router.callback_query(F.data == "adm:backup")
+async def admin_backup_callback(callback: CallbackQuery) -> None:
+    config = BotConfig.load()
+    if not callback.from_user or not await _is_admin(callback.from_user.id, config):
+        await callback.answer()
+        return
+
+    import os
+    from aiogram.types import FSInputFile
+
+    db_path = Path(config.database_path)
+    if not db_path.exists():
+        await callback.answer("❌ Baza fayli topilmadi!", show_alert=True)
+        return
+
+    size_kb = round(os.path.getsize(db_path) / 1024, 1)
+    now_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    backup_filename = f"backup_stars_{now_str}.db"
+
+    db = Database(config.database_path)
+    stats = await db.get_stats()
+
+    caption = (
+        f"💾 <b>Ma'lumotlar Bazasi Zaxira Nusxasi (Backup)</b>\n\n"
+        f"📁 Fayl: <code>{db_path.name}</code>\n"
+        f"📦 Hajmi: <b>{size_kb} KB</b>\n"
+        f"👥 Foydalanuvchilar: <b>{stats['users']} ta</b>\n"
+        f"📋 Buyurtmalar: <b>{stats['orders']} ta</b>\n"
+        f"📅 Sana: <b>{datetime.now().strftime('%d.%m.%Y %H:%M:%S')}</b>"
+    )
+
+    doc = FSInputFile(path=str(db_path), filename=backup_filename)
+    await callback.message.answer_document(doc, caption=caption, parse_mode="HTML")
+    await callback.answer("✅ Baza fayli yuborildi!")
 
 
 # ─── Main panel callback ──────────────────────────────────────────────────────
@@ -1852,6 +1924,7 @@ async def admin_finances_menu(callback: CallbackQuery) -> None:
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Barcha tranzaksiyalar", callback_data="adm:all_tx", icon_custom_emoji_id=ICONS["orders"])],
         [InlineKeyboardButton(text="Balanslar ro'yxati", callback_data="adm:balance_list", icon_custom_emoji_id=ICONS["wallet"])],
+        [InlineKeyboardButton(text="Baza zaxirasi (Backup)", callback_data="adm:backup", icon_custom_emoji_id=ICONS["box"])],
         [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
     ])
 

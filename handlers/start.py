@@ -215,9 +215,24 @@ async def menu_balance(callback: CallbackQuery) -> None:
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
     user_num = db_user.get("id", 1)
+    vip_info = await db.get_user_vip_info(user.id)
+    vip_extra = ""
+    if vip_info.get("is_vip"):
+        saved = int(vip_info.get("vip_saved_uzs", 0))
+        if lang == "ru":
+            vip_extra = f"\n⭐ <b>VIP Статус:</b> Активен (до {vip_info['vip_until']})\n💎 <b>Сэкономлено:</b> <b>{saved:,} сум</b>\n"
+        elif lang == "en":
+            vip_extra = f"\n⭐ <b>VIP Status:</b> Active (until {vip_info['vip_until']})\n💎 <b>Total saved:</b> <b>{saved:,} UZS</b>\n"
+        else:
+            vip_extra = f"\n⭐ <b>VIP Holati:</b> Faol ({vip_info['vip_until']} gacha)\n💎 <b>VIP orqali tejalgan:</b> <b>{saved:,} so'm</b>\n"
+
+    base_text = t(lang, "balance_info", balance=formatted_bal, balance_uzs=int(balance_uzs), user_num=user_num)
+    if vip_extra:
+        base_text = base_text + "\n" + vip_extra
+
     await safe_edit_text(
         callback.message,
-        t(lang, "balance_info", balance=formatted_bal, balance_uzs=int(balance_uzs), user_num=user_num),
+        base_text,
         reply_markup=balance_kb,
         parse_mode="HTML",
     )

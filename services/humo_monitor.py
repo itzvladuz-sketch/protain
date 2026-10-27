@@ -452,9 +452,36 @@ class HumoPaymentMonitor:
                 desc = f"{quantity} Stars"
 
             await self.db.set_order_status(order_id, "completed", fragment_tx_hash=tx)
+
+            is_vip_user = await self.db.is_user_vip(user_id)
+            saved_uzs = 0.0
+            if is_vip_user and order_type == "stars":
+                price_row = await self.db.get_price("stars")
+                comm = float(price_row.get("commission_percent", 8.5168)) / 100
+                rate = getattr(self.config, "usd_to_uzs_rate", 12900.0)
+                base_usd = float(price_row.get("base_price_usd", 0.015))
+                regular_cost = round(base_usd * quantity * (1 + comm) * rate)
+                saved_uzs = max(0.0, float(regular_cost - price_uzs))
+                if saved_uzs > 0:
+                    await self.db.add_vip_savings(user_id, saved_uzs)
+
+            from services.receipt import format_order_receipt
+            receipt_text = format_order_receipt(
+                order_id=order_id,
+                order_type=order_type,
+                desc=desc,
+                recipient=recipient,
+                price_uzs=float(price_uzs),
+                payment_method="Humo / Click",
+                lang=lang,
+                is_vip=is_vip_user,
+                saved_uzs=saved_uzs,
+                tx_hash=tx,
+            )
+
             await self.bot.send_message(
                 user_id,
-                t(lang, "order_completed", amount=desc, recipient=recipient),
+                receipt_text,
                 parse_mode="HTML",
             )
 

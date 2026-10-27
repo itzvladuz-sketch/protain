@@ -99,17 +99,19 @@ TEXTS: dict = {
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Оплата через Humo:</b>\n\n'
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> Карта:\n<code>{card_number}</code>\n'
         '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Владелец: <b>{card_holder}</b>\n\n'
-        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Сумма к оплате:\n<code>{amount:,}</code> сум\n\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Сумма к оплате: <b>{amount:,} сум</b>\n'
+        '📋 Скопировать: <code>{amount_raw}</code>\n\n'
         '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Срок оплаты: <b>{timeout} минут</b>\n\n'
-        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>ВНИМАНИЕ:</b> Для автоматического зачисления переводите именно <code>{amount:,}</code> сум!'
+        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>ВНИМАНИЕ:</b> Для автоматического зачисления переводите именно <code>{amount_raw}</code> сум!'
     ),
     "click_payment_instructions": (
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> <b>Оплата через Click (Uzcard):</b>\n\n'
         '<tg-emoji emoji-id="5967548335542767952">💳</tg-emoji> Карта:\n<code>{card_number}</code>\n'
         '<tg-emoji emoji-id="5771887475421090729">👤</tg-emoji> Владелец: <b>{card_holder}</b>\n\n'
-        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Сумма к оплате:\n<code>{amount:,}</code> сум\n\n'
+        '<tg-emoji emoji-id="5811989245761426317">💰</tg-emoji> Сумма к оплате: <b>{amount:,} сум</b>\n'
+        '📋 Скопировать: <code>{amount_raw}</code>\n\n'
         '<tg-emoji emoji-id="5778605968208170641">⏱</tg-emoji> Срок оплаты: <b>{timeout} минут</b>\n\n'
-        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>ВНИМАНИЕ:</b> Для автоматического зачисления переводите именно <code>{amount:,}</code> сум!\n\n'
+        '<tg-emoji emoji-id="5908961403917570106">📌</tg-emoji> <b>ВНИМАНИЕ:</b> Для автоматического зачисления переводите именно <code>{amount_raw}</code> сум!\n\n'
         "<i>Оплатить можно через бота @clickuz или приложение Click Up.</i>"
     ),
     "payment_not_found": '<tg-emoji emoji-id="5778605968208170641">⏳</tg-emoji> Оплата пока не найдена. Если вы перевели, подождите 1-2 минуты.',
