@@ -25,6 +25,8 @@ login_telethon.py
 # SQLite Databases & WAL
 *.db-wal
 *.db-shm
+test_*.db
+test_*.db-*
 
 # Python cache & artifacts
 __pycache__/
