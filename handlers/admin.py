@@ -74,7 +74,7 @@ def _admin_main_kb() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="Premium Obunalar", callback_data="adm:vips", icon_custom_emoji_id=ICONS["star"], style="primary"),
-            InlineKeyboardButton(text="💳 Moliya & Hisobot", callback_data="adm:finances", icon_custom_emoji_id=ICONS["money"]),
+            InlineKeyboardButton(text="Moliya & Hisobot", callback_data="adm:finances", icon_custom_emoji_id=ICONS["money"]),
         ],
 
         [
@@ -86,7 +86,7 @@ def _admin_main_kb() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="Majburiy kanallar", callback_data="adm:channels", icon_custom_emoji_id=ICONS["megaphone"]),
         ],
         [
-            InlineKeyboardButton(text="⏱ Kutish vaqti", callback_data="adm:timeout", icon_custom_emoji_id=ICONS["clock"]),
+            InlineKeyboardButton(text="Kutish vaqti", callback_data="adm:timeout", icon_custom_emoji_id=ICONS["clock"]),
             InlineKeyboardButton(text="Xabar yuborish", callback_data="adm:broadcast", icon_custom_emoji_id=ICONS["send"]),
         ],
     ])
@@ -100,19 +100,19 @@ def _user_card_kb(user_id: int, is_banned: bool) -> InlineKeyboardMarkup:
     )
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="➕ Pul qo'shish", callback_data=f"adm:add_bal:{user_id}", icon_custom_emoji_id=ICONS["wallet"]),
-            InlineKeyboardButton(text="➖ Pul ayirish", callback_data=f"adm:take_bal:{user_id}", icon_custom_emoji_id=ICONS["money"]),
+            InlineKeyboardButton(text="Pul qo'shish", callback_data=f"adm:add_bal:{user_id}", icon_custom_emoji_id=ICONS["wallet"]),
+            InlineKeyboardButton(text="Pul ayirish", callback_data=f"adm:take_bal:{user_id}", icon_custom_emoji_id=ICONS["money"]),
         ],
         [
-            InlineKeyboardButton(text="🔄 Balansni 0 qilish", callback_data=f"adm:zero_bal:{user_id}", icon_custom_emoji_id=ICONS["trash"]),
+            InlineKeyboardButton(text="Balansni 0 qilish", callback_data=f"adm:zero_bal:{user_id}", icon_custom_emoji_id=ICONS["trash"]),
             ban_btn,
         ],
         [
             InlineKeyboardButton(text="Premium berish / bekor qilish", callback_data=f"adm:toggle_vip:{user_id}", icon_custom_emoji_id=ICONS["star"]),
-            InlineKeyboardButton(text="📜 Tranzaksiyalar tarixi", callback_data=f"adm:user_tx:{user_id}", icon_custom_emoji_id=ICONS["orders"]),
+            InlineKeyboardButton(text="Tranzaksiyalar tarixi", callback_data=f"adm:user_tx:{user_id}", icon_custom_emoji_id=ICONS["orders"]),
         ],
         [
-            InlineKeyboardButton(text="💰 Balanslar ro'yxati", callback_data="adm:balance_list", icon_custom_emoji_id=ICONS["wallet"]),
+            InlineKeyboardButton(text="Balanslar ro'yxati", callback_data="adm:balance_list", icon_custom_emoji_id=ICONS["wallet"]),
             InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"]),
         ],
     ])
@@ -191,7 +191,7 @@ async def show_admin_panel(target: Message, config: Optional[BotConfig] = None) 
     if not config:
         config = BotConfig.load()
     await target.answer(
-        f'{tg_icon("crown", "👑")} <b>Admin Panel</b>\n\nXizmat turini tanlang:',
+        f'{tg_icon("shield", "🛡️")} <b>Admin Panel</b>\n\nXizmat turini tanlang:',
         reply_markup=_admin_main_kb(),
         parse_mode="HTML",
     )
@@ -449,7 +449,7 @@ async def cmd_resetall(message: Message) -> None:
     await message.answer(
         f"✅ <b>Barcha foydalanuvchilar balansi 0 qilindi!</b>\n\n"
         f"🔄 Nollangan foydalanuvchilar soni: <b>{count} ta</b>\n"
-        f"👑 Asosiy admin (<code>{message.from_user.id}</code>) balansi o'zgarishsiz qoldirildi.",
+        f"🛡️ Asosiy admin (<code>{message.from_user.id}</code>) balansi o'zgarishsiz qoldirildi.",
         parse_mode="HTML",
     )
 
@@ -495,7 +495,7 @@ async def cmd_list_balances(message: Message) -> None:
         InlineKeyboardButton(text="👥 Barcha foydalanuvchilar", callback_data="adm:balance_list_all"),
     ])
     inline_keyboard.append([
-        InlineKeyboardButton(text="➕ Balans to'ldirish", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["wallet"]),
+        InlineKeyboardButton(text="Balans to'ldirish", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["wallet"]),
         InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"]),
     ])
 
@@ -539,7 +539,7 @@ async def admin_main(callback: CallbackQuery, state: FSMContext) -> None:
     if not callback.from_user or not await _is_admin(callback.from_user.id, config):
         return
     await callback.message.edit_text(
-        f'{tg_icon("crown", "👑")} <b>Admin Panel</b>\n\nXizmat turini tanlang:',
+        f'{tg_icon("shield", "🛡️")} <b>Admin Panel</b>\n\nXizmat turini tanlang:',
         reply_markup=_admin_main_kb(),
         parse_mode="HTML",
     )
@@ -961,7 +961,7 @@ async def admin_users(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.set_state(AdminStates.waiting_user_id)
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💰 Balanslar ro'yxati", callback_data="adm:balance_list", icon_custom_emoji_id=ICONS["wallet"])],
+        [InlineKeyboardButton(text="Balanslar ro'yxati", callback_data="adm:balance_list", icon_custom_emoji_id=ICONS["wallet"])],
         [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
     ])
     await callback.message.edit_text(
@@ -1082,7 +1082,7 @@ async def admin_balance_list(callback: CallbackQuery, state: FSMContext) -> None
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [toggle_btn],
-            [InlineKeyboardButton(text="➕ Balans to'ldirish", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["wallet"])],
+            [InlineKeyboardButton(text="Balans to'ldirish", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["wallet"])],
             [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
         ])
         await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
@@ -1113,7 +1113,7 @@ async def admin_balance_list(callback: CallbackQuery, state: FSMContext) -> None
     )
     inline_keyboard.append([toggle_btn])
     inline_keyboard.append([
-        InlineKeyboardButton(text="➕ Balans to'ldirish", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["wallet"]),
+        InlineKeyboardButton(text="Balans to'ldirish", callback_data="adm:give_balance", icon_custom_emoji_id=ICONS["wallet"]),
         InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"]),
     ])
 
@@ -1248,7 +1248,7 @@ async def admin_process_give_balance_amount(message: Message, state: FSMContext)
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="👤 User kartasi", callback_data=f"adm:view_user:{target_user_id}")],
-        [InlineKeyboardButton(text="💰 Balanslar ro'yxati", callback_data="adm:balance_list")],
+        [InlineKeyboardButton(text="Balanslar ro'yxati", callback_data="adm:balance_list")],
         [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
     ])
     await message.answer(
@@ -1339,7 +1339,7 @@ async def admin_process_take_balance_amount(message: Message, state: FSMContext)
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="👤 User kartasi", callback_data=f"adm:view_user:{target_user_id}")],
-        [InlineKeyboardButton(text="💰 Balanslar ro'yxati", callback_data="adm:balance_list")],
+        [InlineKeyboardButton(text="Balanslar ro'yxati", callback_data="adm:balance_list")],
         [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
     ])
     tx_id = await db.record_transaction(
@@ -1850,8 +1850,8 @@ async def admin_finances_menu(callback: CallbackQuery) -> None:
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📋 Barcha tranzaksiyalar", callback_data="adm:all_tx", icon_custom_emoji_id=ICONS["orders"])],
-        [InlineKeyboardButton(text="💰 Balanslar ro'yxati", callback_data="adm:balance_list", icon_custom_emoji_id=ICONS["wallet"])],
+        [InlineKeyboardButton(text="Barcha tranzaksiyalar", callback_data="adm:all_tx", icon_custom_emoji_id=ICONS["orders"])],
+        [InlineKeyboardButton(text="Balanslar ro'yxati", callback_data="adm:balance_list", icon_custom_emoji_id=ICONS["wallet"])],
         [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
     ])
 
@@ -1951,7 +1951,7 @@ async def admin_vip_management(callback: CallbackQuery) -> None:
         lines.append("<i>Hozircha faol VIP obunachi yo'q.</i>")
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👥 Foydalanuvchilar", callback_data="adm:users", icon_custom_emoji_id=ICONS["users"])],
+        [InlineKeyboardButton(text="Foydalanuvchilar", callback_data="adm:users", icon_custom_emoji_id=ICONS["users"])],
         [InlineKeyboardButton(text="Admin Panel", callback_data="adm:main", icon_custom_emoji_id=ICONS["back"])],
     ])
 
@@ -1993,7 +1993,7 @@ async def admin_toggle_vip_prompt(callback: CallbackQuery) -> None:
             InlineKeyboardButton(text="🌟 +30 kun", callback_data=f"adm:act_vip:{user_id}:30"),
             InlineKeyboardButton(text="❌ VIPni bekor qilish", callback_data=f"adm:act_vip:{user_id}:0"),
         ],
-        [InlineKeyboardButton(text="🔙 User kartasi", callback_data=f"adm:view_user:{user_id}", icon_custom_emoji_id=ICONS["back"])],
+        [InlineKeyboardButton(text="User kartasi", callback_data=f"adm:view_user:{user_id}", icon_custom_emoji_id=ICONS["back"])],
     ])
 
     await safe_edit_text(callback.message, text, reply_markup=kb, parse_mode="HTML")

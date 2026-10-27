@@ -296,8 +296,8 @@ async def topup_manual_amount(message: Message, state: FSMContext) -> None:
 
 def _topup_method_kb(lang: str, amt: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💳 Humo orqali to'lash", callback_data=f"topup_pay:humo:{amt}", icon_custom_emoji_id=ICONS["card"])],
-        [InlineKeyboardButton(text="🔵 Click orqali to'lash", callback_data=f"topup_pay:click:{amt}", icon_custom_emoji_id=ICONS["card"])],
+        [InlineKeyboardButton(text="Humo orqali to'lash", callback_data=f"topup_pay:humo:{amt}", icon_custom_emoji_id=ICONS["card"])],
+        [InlineKeyboardButton(text="Click orqali to'lash", callback_data=f"topup_pay:click:{amt}", icon_custom_emoji_id=ICONS["card"])],
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="balance:topup", icon_custom_emoji_id=ICONS["back"])],
     ])
 
@@ -1098,12 +1098,12 @@ async def check_payment(callback: CallbackQuery, state: FSMContext) -> None:
 
     if user.id in config.admin_user_ids:
         test_kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⚡️ Hoziroq tasdiqlash va Stars yuborish", callback_data=f"admin_confirm:{order_id}", icon_custom_emoji_id=ICONS["lightning"])],
-            [InlineKeyboardButton(text="🔄 Qayta tekshirish", callback_data=f"check:{order_id}", icon_custom_emoji_id=ICONS["check"])],
-            [InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"admin_cancel:{order_id}", icon_custom_emoji_id=ICONS["cancel"])],
+            [InlineKeyboardButton(text="Hoziroq tasdiqlash va Stars yuborish", callback_data=f"admin_confirm:{order_id}", icon_custom_emoji_id=ICONS["lightning"])],
+            [InlineKeyboardButton(text="Qayta tekshirish", callback_data=f"check:{order_id}", icon_custom_emoji_id=ICONS["check"])],
+            [InlineKeyboardButton(text="Bekor qilish", callback_data=f"admin_cancel:{order_id}", icon_custom_emoji_id=ICONS["cancel"])],
         ])
         await callback.message.edit_text(
-            f"{tg_icon('crown', '👑')} <b>Admin sinov rejimi:</b>\n\n"
+            f"{tg_icon('shield', '🛡️')} <b>Admin sinov rejimi:</b>\n\n"
             f"{tg_icon('orders', '🆔')} Buyurtma: #{order_id}\n"
             f"{tg_icon('box', '📦')} Mahsulot: <b>{order_type_desc}</b>{rec_desc}\n"
             f"{tg_icon('dollar', '💵')} Summa: <b>{check_amt:,} so'm</b>\n\n"
@@ -1111,7 +1111,7 @@ async def check_payment(callback: CallbackQuery, state: FSMContext) -> None:
             reply_markup=test_kb,
             parse_mode="HTML",
         )
-        await callback.answer("👑 Admin rejimi: darhol tasdiqlashingiz mumkin!")
+        await callback.answer("🛡️ Admin rejimi: darhol tasdiqlashingiz mumkin!")
         return
 
     alert_text = (
@@ -1142,8 +1142,8 @@ async def process_user_payment_sms(message: Message, state: FSMContext) -> None:
     # Forward receipt to admins for manual review if user sends check screenshot/text
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     admin_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"✅ #{order_id} Tasdiqlash", callback_data=f"admin_confirm:{order_id}", icon_custom_emoji_id=ICONS["check"])],
-        [InlineKeyboardButton(text=f"❌ #{order_id} Bekor qilish", callback_data=f"admin_cancel:{order_id}", icon_custom_emoji_id=ICONS["cancel"])],
+        [InlineKeyboardButton(text=f"#{order_id} Tasdiqlash", callback_data=f"admin_confirm:{order_id}", icon_custom_emoji_id=ICONS["check"])],
+        [InlineKeyboardButton(text=f"#{order_id} Bekor qilish", callback_data=f"admin_cancel:{order_id}", icon_custom_emoji_id=ICONS["cancel"])],
     ])
 
     admin_caption = (
@@ -1427,7 +1427,7 @@ async def user_balance_history(callback: CallbackQuery) -> None:
             f"{tg_icon('orders', '📜')} <b>Tranzaksiyalar tarixi:</b>\n\n"
             f"<i>Hozircha hisobingiz bo'yicha hech qanday operatsiya qayd etilmagan.</i>",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔙 Balansga qaytish", callback_data="menu:balance", icon_custom_emoji_id=ICONS["back"])]
+                [InlineKeyboardButton(text="Balansga qaytish", callback_data="menu:balance", icon_custom_emoji_id=ICONS["back"])]
             ]),
             parse_mode="HTML",
         )
@@ -1455,6 +1455,6 @@ async def user_balance_history(callback: CallbackQuery) -> None:
         )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Balansga qaytish", callback_data="menu:balance", icon_custom_emoji_id=ICONS["back"])]
+        [InlineKeyboardButton(text="Balansga qaytish", callback_data="menu:balance", icon_custom_emoji_id=ICONS["back"])]
     ])
     await safe_edit_text(callback.message, "\n\n".join(lines), reply_markup=kb, parse_mode="HTML")

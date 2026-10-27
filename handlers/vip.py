@@ -23,7 +23,7 @@ router = Router()
 
 def _vip_back_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="menu:vip", icon_custom_emoji_id=ICONS["back"])]
+        [InlineKeyboardButton(text="Orqaga", callback_data="menu:vip", icon_custom_emoji_id=ICONS["back"])]
     ])
 
 
@@ -54,8 +54,8 @@ async def vip_menu(callback: CallbackQuery, state: FSMContext) -> None:
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Stars xarid qilish (0%)", callback_data="menu:stars", icon_custom_emoji_id=ICONS["star"])],
-            [InlineKeyboardButton(text="🔄 Obunani uzaytirish", callback_data="vip:extend", icon_custom_emoji_id=ICONS["star"])],
-            [InlineKeyboardButton(text="🔙 Asosiy menyu", callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
+            [InlineKeyboardButton(text="Obunani uzaytirish", callback_data="vip:extend", icon_custom_emoji_id=ICONS["star"])],
+            [InlineKeyboardButton(text="Asosiy menyu", callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
         ])
         await safe_edit_text(callback.message, text, reply_markup=kb, parse_mode="HTML")
         return
@@ -106,7 +106,7 @@ async def _show_vip_plans(target: Message, plans: dict, is_extend: bool = False)
             callback_data="vip_plan:vip_15d",
             icon_custom_emoji_id=ICONS["star"]
         )],
-        [InlineKeyboardButton(text="🔙 Asosiy menyu", callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
+        [InlineKeyboardButton(text="Asosiy menyu", callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
 
     await safe_edit_text(target, text, reply_markup=kb, parse_mode="HTML")
@@ -146,16 +146,16 @@ async def vip_plan_selected(callback: CallbackQuery) -> None:
             icon_custom_emoji_id=ICONS["wallet"]
         )],
         [InlineKeyboardButton(
-            text="💳 Humo orqali to'lash",
+            text="Humo orqali to'lash",
             callback_data=f"vip_pay:humo:{plan_key}",
             icon_custom_emoji_id=ICONS["card"]
         )],
         [InlineKeyboardButton(
-            text="📲 Click orqali to'lash",
+            text="Click orqali to'lash",
             callback_data=f"vip_pay:click:{plan_key}",
             icon_custom_emoji_id=ICONS["card"]
         )],
-        [InlineKeyboardButton(text="🔙 Tariflarga qaytish", callback_data="menu:vip", icon_custom_emoji_id=ICONS["back"])],
+        [InlineKeyboardButton(text="Tariflarga qaytish", callback_data="menu:vip", icon_custom_emoji_id=ICONS["back"])],
     ])
 
     await safe_edit_text(callback.message, text, reply_markup=kb, parse_mode="HTML")
@@ -186,10 +186,10 @@ async def vip_pay_from_balance(callback: CallbackQuery) -> None:
             f"📌 Tarif narxi: <b>{int(price_uzs):,} so'm</b>\n\n"
             f"Iltimos, avval balansingizni to'ldiring yoki to'g'ridan-to'g'ri karta orqali to'lang:",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="➕ Balansni to'ldirish", callback_data="balance:topup", icon_custom_emoji_id=ICONS["plus"])],
-                [InlineKeyboardButton(text="💳 Humo orqali to'lash", callback_data=f"vip_pay:humo:{plan_key}", icon_custom_emoji_id=ICONS["card"])],
-                [InlineKeyboardButton(text="📲 Click orqali to'lash", callback_data=f"vip_pay:click:{plan_key}", icon_custom_emoji_id=ICONS["card"])],
-                [InlineKeyboardButton(text="🔙 Orqaga", callback_data="menu:vip", icon_custom_emoji_id=ICONS["back"])],
+                [InlineKeyboardButton(text="Balansni to'ldirish", callback_data="balance:topup", icon_custom_emoji_id=ICONS["plus"])],
+                [InlineKeyboardButton(text="Humo orqali to'lash", callback_data=f"vip_pay:humo:{plan_key}", icon_custom_emoji_id=ICONS["card"])],
+                [InlineKeyboardButton(text="Click orqali to'lash", callback_data=f"vip_pay:click:{plan_key}", icon_custom_emoji_id=ICONS["card"])],
+                [InlineKeyboardButton(text="Orqaga", callback_data="menu:vip", icon_custom_emoji_id=ICONS["back"])],
             ]),
             parse_mode="HTML",
         )
@@ -242,7 +242,7 @@ async def vip_pay_from_balance(callback: CallbackQuery) -> None:
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Stars xarid qilish (0%)", callback_data="menu:stars", icon_custom_emoji_id=ICONS["star"])],
-        [InlineKeyboardButton(text="🔙 Asosiy menyu", callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
+        [InlineKeyboardButton(text="Asosiy menyu", callback_data="back:main", icon_custom_emoji_id=ICONS["back"])],
     ])
 
     await safe_edit_text(callback.message, text, reply_markup=kb, parse_mode="HTML")
@@ -314,7 +314,7 @@ async def vip_pay_card(callback: CallbackQuery) -> None:
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"order_cancel:{order_id}", icon_custom_emoji_id=ICONS["cancel"])]
+        [InlineKeyboardButton(text="Bekor qilish", callback_data=f"order_cancel:{order_id}", icon_custom_emoji_id=ICONS["cancel"])]
     ])
 
     await safe_edit_text(callback.message, text, reply_markup=kb, parse_mode="HTML")
