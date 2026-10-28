@@ -45,14 +45,17 @@ def extract_amount_uzs(text: str) -> Optional[float]:
         "hisobingiz to'ldirildi", "karta to'ldirildi", "kartangiz to'ldirildi",
         "kelib tushdi", "перевод на карту", "зачисление", "пополнение",
         "vhodjaschij", "vhod", "o'tkazma", "перевод", "postupili",
-        "zachislenie", "perevod",
+        "zachislenie", "perevod", "qabul qilindi", "to'lov qabul qilindi",
+        "tolov qabul qilindi", "muvaffaqiyatli", "popolnen", "oplata",
+        "postupilo", "pul keldi", "o'tkazildi", "otkazildi", "zachisleno",
+        "oplacheno", "oplata poluchena",
     )
-    if not (any(m in lower for m in deposit_markers) or "+" in normalized):
+    if not (any(dm in lower for dm in deposit_markers) or "+" in normalized):
         return None
 
     for raw_line in normalized.splitlines():
         # Split by comma, semicolon, or sentence-ending period (. followed by whitespace)
-        chunks = re.split(r"[,;]|\.\s+", raw_line)
+        chunks = re.split(r"(?<!\d),\s*|;\s*|\.\s+", raw_line)
         for line in chunks:
             line = line.strip()
             line_lower = line.lower()
@@ -70,11 +73,11 @@ def extract_amount_uzs(text: str) -> Optional[float]:
             if not m:
                 # Try matching with keywords like Summa, to'ldirish, etc.
                 m = re.search(
-                    r"(?:to'?ldirish|tushum|kirim|popolnenie|summa|сумма|зачисление|zachislenie|perevod|o'?tkazma)[:\s]+\+?\s*([0-9]+(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)",
+                    r"(?:to'?ldirish|tushum|kirim|popolnenie|summa|сумма|зачисление|zachislenie|perevod|o'?tkazma|to'?lov(?: qabul qilindi)?)[:\s]+\+?\s*([0-9]+(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)",
                     line,
                     re.IGNORECASE,
                 )
-            if not m and any(m in lower for m in deposit_markers):
+            if not m and any(dm in lower for dm in deposit_markers):
                 # Try matching amount followed by currency: 15 000 UZS
                 m = re.search(
                     r"(?:^|[\s:+])([0-9]+(?:[.,\s][0-9]{3})*(?:[.,][0-9]{1,2})?|[0-9]+)\s*(?:uzs|so'?m|sum|сум)",

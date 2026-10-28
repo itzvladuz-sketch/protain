@@ -5,8 +5,12 @@ from __future__ import annotations
 import html
 
 import asyncio
+import os
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
+from aiogram.types import FSInputFile
+from services.subscription import invalidate_subscription_cache
 
 from aiogram import F, Router
 from aiogram.filters import Command

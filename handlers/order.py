@@ -23,6 +23,7 @@ from services.currency import format_currency, format_balance
 from services.ton import TONService
 from services.icons import ICONS, tg_icon
 from services.ui import safe_answer, safe_edit_text
+from services.receipt import format_order_receipt
 
 load_dotenv()
 router = Router()
@@ -681,8 +682,6 @@ async def stars_qty_selected(callback: CallbackQuery, state: FSMContext) -> None
 
     qty = int(val)
     await state.update_data(quantity=qty)
-    if prices.get("is_vip"):
-        summary += "\n⭐ <b>Premium Imtiyoz:</b> 0% Komissiya (Tannarxida)!"
     await state.set_state(OrderFlow.confirm_order)
     await _show_order_summary(callback.message, state, lang, config, user_id=user.id)
     await callback.answer()
@@ -785,6 +784,9 @@ async def _show_order_summary(
                     price=price_formatted,
                     balance=bal_str,
                     discount_line=disc_line)
+
+    if prices.get("is_vip") and service == "stars":
+        summary += "\n⭐ <b>Premium Imtiyoz:</b> 0% Komissiya (Tannarxida)!"
 
     await state.set_state(OrderFlow.confirm_order)
     kb = _order_confirm_kb(
@@ -926,14 +928,14 @@ async def pay_balance(callback: CallbackQuery, state: FSMContext) -> None:
 
         # Track VIP savings if applicable
         saved_uzs = 0.0
-        if prices.get("is_vip") and order_type == "stars":
+        is_vip_user = bool(data.get("is_vip", False)) or await db.is_user_vip(user.id)
+        if is_vip_user and order_type == "stars":
             base_usd = float((await db.get_price("stars") or {}).get("base_price_usd", 0.015))
             regular_cost = round(base_usd * qty * (1 + 0.085168) * rate)
             saved_uzs = max(0.0, float(regular_cost - price_uzs))
             if saved_uzs > 0:
                 await db.add_vip_savings(user.id, saved_uzs)
 
-        from services.receipt import format_order_receipt
         receipt_text = format_order_receipt(
             order_id=order_id,
             order_type=order_type,
@@ -942,7 +944,7 @@ async def pay_balance(callback: CallbackQuery, state: FSMContext) -> None:
             price_uzs=float(price_uzs),
             payment_method="Bot Balansi",
             lang=lang,
-            is_vip=bool(prices.get("is_vip")),
+            is_vip=is_vip_user,
             saved_uzs=saved_uzs,
             tx_hash=tx,
         )
