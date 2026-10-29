@@ -370,8 +370,10 @@ async def _create_card_topup_order(target: Message, user, amt: float, pay_type: 
     await state.set_state(OrderFlow.waiting_payment)
     text = t(lang, instr_key,
              card_number=card_num,
+             card_number_clean=card_num.replace(" ", ""),
              card_holder=card_holder,
              amount=int(final_amt),
+             amount_raw=int(final_amt),
              timeout=timeout_min)
     try:
         await target.edit_text(text, reply_markup=_payment_kb(lang, order_id, payment_type=pay_type), parse_mode="HTML")
