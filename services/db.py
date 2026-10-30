@@ -11,6 +11,7 @@ Tables:
 from __future__ import annotations
 
 import asyncio
+import os
 
 from contextlib import asynccontextmanager
 from datetime import datetime, date, timedelta
@@ -74,7 +75,10 @@ class Database:
         lock = self._get_lock()
         async with lock:
             if self._shared_conn is None:
-                self._shared_conn = await aiosqlite.connect(self.db_path, timeout=60.0)
+                db_dir = os.path.dirname(os.path.abspath(self.db_path))
+                if db_dir:
+                    os.makedirs(db_dir, exist_ok=True)
+                self._shared_conn = await aiosqlite.connect(self.db_path, timeout=60.0, isolation_level=None)
                 await self._shared_conn.execute("PRAGMA busy_timeout = 60000;")
                 await self._shared_conn.execute("PRAGMA journal_mode = WAL;")
                 await self._shared_conn.execute("PRAGMA synchronous = NORMAL;")
